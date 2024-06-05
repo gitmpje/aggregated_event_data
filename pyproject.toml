@@ -1,0 +1,25 @@
+[project]
+name = "aggregated_event_data"
+version = "0.0.1"
+authors = [
+  { name="Mark", email="mark.van.der.pas@semaku.com" },
+]
+description = "Package for simulating an (assembly) environment where products/devices are traced on an aggregated level."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/gitmpje/aggregated_event_data"
+Issues = "https://github.com/gitmpje/aggregated_event_data/issues"
+
+[build-system]
+requires = [
+  "setuptools>=61.0",
+  "simpy>=4.1"
+]
+build-backend = "setuptools.build_meta"
