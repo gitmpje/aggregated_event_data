@@ -70,13 +70,27 @@ class Controller:
         for lot_id in target_lot.merge["lot_identifiers"][1:]:
             lot = yield self.merge_store.get(lambda lot: lot.identifier == lot_id)
             yield self.env.timeout(
-                0,
+                0.1,
                 value={
                     "lot": target_lot.identifier,
                     "childLot": lot.identifier,
                     "eventType": "Merge",
-                    "inputQuantity": len(target_lot.devices),
-                    "outputQuantity": len(target_lot.devices) + len(lot.devices),
+                    "inputQuantity": [
+                        {
+                            "amount": len(target_lot.devices),
+                            "class": "_".join(lot.executed_steps),
+                            "fromEntity": target_lot.identifier,
+                        },{
+                            "amount": len(lot.devices),
+                            "class": "_".join(lot.executed_steps),
+                            "fromEntity": lot.identifier,
+                        }
+                    ],
+                    "outputQuantity": {
+                        "amount": len(target_lot.devices) + len(lot.devices),
+                        "class": "_".join(target_lot.executed_steps),
+                        "fromEntity": target_lot.identifier,
+                    },
                     "_devices": target_lot.devices + lot.devices
                 }
             )
@@ -101,19 +115,31 @@ class Controller:
                 dict(),
                 devices_list[i]
             )
-            yield self.lot_store.put(lot)
+
             yield self.env.timeout(
-                0,
+                0.1,
                 value={
                     "lot": target_lot.identifier,
                     "childLot": lot.identifier,
                     "eventType": "Split",
-                    "inputQuantity": len(target_lot.devices),
-                    "outputQuantity": len(lot.devices),
-                    "_devices": lot.devices
+                    "inputQuantity": {
+                        "amount": len(target_lot.devices),
+                        "class": "_".join(target_lot.executed_steps),
+                        "fromEntity": target_lot.identifier,
+                    },
+                    "outputQuantity": {
+                        "amount": len(lot.devices),
+                        "class": "_".join(target_lot.executed_steps),
+                        "fromEntity": lot.identifier,
+                    },
+                    "_devices": target_lot.devices
                 }
             )
+            [target_lot.devices.remove(d) for d in devices_list[i]]
+
             print(f"{target_lot.identifier} [{self.env.now}] - Splitted {lot.identifier}")
+
+            yield self.lot_store.put(lot)
 
         target_lot.devices = []
         target_lot.executed_steps.append("Split")

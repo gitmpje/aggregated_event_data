@@ -1,0 +1,15 @@
+{
+    "production_lots": [
+        {"id": "Lot0", "steps": ["WT", "DB", "WB"], "merge": {}, "split": {"after_step": "WT", "number_of_split_lots": 3}, "n_devices": 10},
+        {"id": "Lot1", "steps": ["WT", "DB", "WB"], "merge": {}, "split": {"after_step": "DB", "number_of_split_lots": 2}, "n_devices": 5},
+        {"id": "Lot2", "steps": ["WT", "DB", "WB"], "merge": {"after_step": "DB", "lot_identifiers": ["Lot2", "Lot3"]}, "split": {}, "n_devices": 5},
+        {"id": "Lot2", "steps": ["WT", "DB", "WB"], "merge": {"after_step": "DB", "lot_identifiers": ["Lot2", "Lot3"]}, "split": {}, "n_devices": 5}
+    ],
+    "production_resources": [
+        {"id": "WT1", "step": "WT", "mean_move": 0.5, "mean_duration": 1, "mean_breakdown": 5, "mean_repair": 1},
+        {"id": "DB1", "step": "DB", "mean_move": 0.5, "mean_duration": 2, "mean_breakdown": 5, "mean_repair": 1},
+        {"id": "WB1", "step": "WB", "mean_move": 0.5, "mean_duration": 1, "mean_breakdown": 5, "mean_repair": 1},
+        {"id": "WB2", "step": "WB", "mean_move": 0.5, "mean_duration": 2, "mean_breakdown": 5, "mean_repair": 1}
+    ],
+    "packing_unit_size": 2
+}

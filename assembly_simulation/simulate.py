@@ -48,6 +48,7 @@ def main():
             env,
             r["id"],
             r["step"],
+            r["mean_move"],
             r["mean_duration"],
             r["mean_breakdown"],
             r["mean_repair"],
@@ -71,7 +72,7 @@ def main():
         packing_store
     )
 
-    simulation_event_logging = SimulationEventLogging(env)
+    simulation_event_logging = SimulationEventLogging(env, Path(args.config_file).stem)
     env.run(args.runtime)
     print(packing_resource.packing_units)
 

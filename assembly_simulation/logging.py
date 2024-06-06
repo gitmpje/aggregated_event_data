@@ -9,11 +9,14 @@ LOGS_FOLDER = "logs"
 
 class SimulationEventLogging:
 
-    def __init__(self, env: Environment):
+    def __init__(self, env: Environment, identifier: str):
         self.env = env
+        self.identifier = identifier
+        self.events_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_events.txt")
+        self.event_log_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_event_log.json")
 
         # Clear event log
-        with open(os.path.join(LOGS_FOLDER, "events.txt"), "w") as f:
+        with open(self.events_file, "w") as f:
             f.write("")
 
         # Capture event data
@@ -44,7 +47,7 @@ class SimulationEventLogging:
         env.step = get_wrapper(env.step, callback)
 
     def monitor(self, event_list, t, prio, eid, event):
-        with open(os.path.join(LOGS_FOLDER, "events.txt"), "a") as f:
+        with open(self.events_file, "a") as f:
             f.write(f"{t}: {str(event)}\n")
         if isinstance(event._value, dict):
             event_dict = {"eventIdentifier": str(eid), "timestamp": t}
@@ -58,15 +61,32 @@ class SimulationEventLogging:
 
     def write_json_event_data(self):
 
+        aggregated_entities = []
+        for event in self.event_list:
+            event_lot = event.get("lot")
+            if isinstance(event_lot, list):
+                aggregated_entities.extend(event_lot)
+            else:
+                aggregated_entities.append(event_lot)
+
+        aggregated_entities = [
+            {
+                "@type": "AggregatedEntity",
+                "identifier": lot,
+                "rdfs:label": lot
+            }
+            for lot in set(aggregated_entities)
+        ]
+
         event_log = {
             "@context": {
                 "@version": 1.1,
-                "@base": "http://example.org/id/event/",
-                "@vocab": "http://example.org/def/event/",
+                "@base": "http://example.org/id/ekg/aggregated_traces/",
+                "@vocab": "http://example.org/def/ekg/aggregated_traces/",
                 "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
                 "prov": "http://www.w3.org/ns/prov#",
                 "events": {
-                    "@container": "@list",
+                    "@container": "@set",
                     "@context": {
                         "eventIdentifier": "@id",
                         "eventType": "@type",
@@ -75,15 +95,33 @@ class SimulationEventLogging:
                             "@id": "prov:entity",
                             "@type": "@id"
                         },
+                        "childLot": {
+                            "@id": "prov:entity",
+                            "@type": "@id"
+                        },
                         "resource": {
                             "@id": "prov:entity",
                             "@type": "@id"
+                        },
+                        "_devices": {
+                            "@id": "device",
+                            "@type": "@id"
+                        },
+                        "fromEntity": {
+                            "@type": "@id"
                         }
+                    }
+                },
+                "entities": {
+                    "@container": "@set",
+                    "@context": {
+                        "identifier": "@id"
                     }
                 }
             },
-            "events": self.event_list
+            "events": self.event_list,
+            "entities": aggregated_entities
         }
 
-        with open("logs/event_log.json", "w") as f:
+        with open(self.event_log_file, "w") as f:
             dump(event_log, f, indent=2)

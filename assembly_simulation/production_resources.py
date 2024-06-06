@@ -1,3 +1,4 @@
+from collections import defaultdict
 from random import expovariate, shuffle
 from simpy import Environment, Interrupt, PriorityStore, Store
 
@@ -7,6 +8,7 @@ class ProductionResource:
             env: Environment,
             identifier: str,
             capability: str,
+            mean_move: float,
             mean_duration: float,
             mean_breakdown: float,
             mean_repair: float,
@@ -17,6 +19,7 @@ class ProductionResource:
 
         self.identifier = identifier
         self.capability = capability
+        self.mean_move = mean_move
         self.mean_duration = mean_duration
         self.mean_breakdown = mean_breakdown
         self.mean_repair = mean_repair
@@ -46,7 +49,7 @@ class ProductionResource:
 
             print(f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}")
             yield self.env.timeout(
-                0,
+                expovariate(self.mean_move),
                 value={
                     "lot": lot.identifier,
                     "resource": self.identifier,
@@ -105,23 +108,48 @@ class PackingResource:
             # Can be extended to get lots based on product type
             lot_to_pack = yield self.packing_store.get()
             shuffle(lot_to_pack.devices)
-            self.remainder.extend(lot_to_pack.devices)
+
+            # Create list with lot-device pairs
+            self.remainder.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
 
             devices_list = list(zip(*(iter(self.remainder),)*self.packing_size))
             i = 0
             for devices in devices_list:
+                # Only create 'complete' packing units
                 if len(devices) != self.packing_size:
                     continue
+
+                packing_unit_id = f"{lot_to_pack.identifier}_Pack{i}"
+
+                # Collect all devices per lot and 'construct' input quantities
+                input_devices = defaultdict(list)
+                for d in devices:
+                    input_devices[d[0]].append(d[1])
+                input_quantities = [
+                    {
+                        "amount": len(d),
+                        "class": "_".join(lot.executed_steps),
+                        "fromEntity": lot.identifier,
+                    }
+                    for lot,d in input_devices.items()
+                ]
+
                 yield self.env.timeout(
-                    0,
+                    0.1,
                     value={
-                        "lot": lot_to_pack.identifier,
-                        "packingUnit": f"{lot_to_pack.identifier}_Pack{i}",
+                        "lot": [lot.identifier for lot in input_devices.keys()],
+                        "packingUnit": packing_unit_id,
                         "eventType": "Pack",
-                        "outputQuantity": len(devices),
-                        "_devices": list(devices)
+                        "inputQuantity": input_quantities,
+                        "outputQuantity": {
+                            "amount": len(devices),
+                            "class": "_".join(lot_to_pack.executed_steps),
+                            "fromEntity": packing_unit_id,
+                        },
+                        "_devices": [d[1] for d in devices]
                     }
                 )
+
                 [self.remainder.remove(d) for d in devices]
-                self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = devices
+                self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = [d[1] for d in devices]
                 i += 1
