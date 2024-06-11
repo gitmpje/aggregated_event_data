@@ -104,6 +104,7 @@ class Controller:
     def lot_splitting(self, target_lot: ProductionLot):
         n = target_lot.split["number_of_split_lots"]
         devices_list = partition_list(target_lot.devices, n)
+        splitted_lots = []
         for i in range(target_lot.split["number_of_split_lots"]):
             # Do not create lots without devices
             if not devices_list[i]:
@@ -116,29 +117,35 @@ class Controller:
                 devices_list[i]
             )
 
-            yield self.env.timeout(
-                0.1,
-                value={
-                    "lot": target_lot.identifier,
-                    "childLot": lot.identifier,
-                    "eventType": "Split",
-                    "inputQuantity": {
-                        "amount": len(target_lot.devices),
-                        "class": "_".join(target_lot.executed_steps),
-                        "fromEntity": target_lot.identifier,
-                    },
-                    "outputQuantity": {
+            splitted_lots.append(lot)
+
+        yield self.env.timeout(
+            0.1,
+            value={
+                "lot": target_lot.identifier,
+                "childLot": [lot.identifier for lot in splitted_lots],
+                "eventType": "Split",
+                "inputQuantity": {
+                    "amount": len(target_lot.devices),
+                    "class": "_".join(target_lot.executed_steps),
+                    "fromEntity": target_lot.identifier,
+                },
+                "outputQuantity": [
+                    {
                         "amount": len(lot.devices),
                         "class": "_".join(target_lot.executed_steps),
                         "fromEntity": lot.identifier,
-                    },
-                    "_devices": target_lot.devices
-                }
-            )
-            [target_lot.devices.remove(d) for d in devices_list[i]]
+                    }
+                    for lot in splitted_lots
+                ],
+                "_devices": target_lot.devices
+            }
+        )
 
-            print(f"{target_lot.identifier} [{self.env.now}] - Splitted {lot.identifier}")
+        print(f"{target_lot.identifier} [{self.env.now}] - Splitted {[lot.identifier for lot in splitted_lots]}")
 
+        for lot in splitted_lots:
+            [target_lot.devices.remove(d) for d in lot.devices]
             yield self.lot_store.put(lot)
 
         target_lot.devices = []
