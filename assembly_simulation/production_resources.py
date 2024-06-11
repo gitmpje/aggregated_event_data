@@ -2,6 +2,8 @@ from collections import defaultdict
 from random import expovariate, shuffle
 from simpy import Environment, Interrupt, PriorityStore, Store
 
+from assembly_simulation.production_entities import ProductionLot
+
 class ProductionResource:
     def __init__(
             self,
@@ -110,15 +112,63 @@ class PackingResource:
             shuffle(lot_to_pack.devices)
 
             # Create list with lot-device pairs
-            self.remainder.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
+            devices_to_pack = self.remainder.copy()
+            devices_to_pack.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
 
-            devices_list = list(zip(*(iter(self.remainder),)*self.packing_size))
+            # Only create 'complete' packing units, so split 'remainder' (devices)
+            # TODO: use common split method (from controller?)
+            r = len(devices_to_pack) % self.packing_size
+            if r > 0:
+                remainder_devices = [d[1] for d in devices_to_pack[-1*r:]]
+                print(lot_to_pack.identifier, remainder_devices)
+
+                lot = ProductionLot(
+                    f"{lot_to_pack.identifier}_R",
+                    lot_to_pack.required_steps.copy(),
+                    dict(),
+                    dict(),
+                    remainder_devices
+                )
+
+                yield self.env.timeout(
+                    0.1,
+                    value={
+                        "lot": lot_to_pack.identifier,
+                        "childLot": lot.identifier,
+                        "eventType": "Split",
+                        "inputQuantity": {
+                            "amount": len(lot_to_pack.devices),
+                            "class": "_".join(lot_to_pack.executed_steps),
+                            "fromEntity": lot_to_pack.identifier,
+                        },
+                        "outputQuantity": [
+                            {
+                                "amount": len(lot.devices),
+                                "class": "_".join(lot_to_pack.executed_steps),
+                                "fromEntity": lot.identifier,
+                            },
+                            {
+                                "amount": len(lot_to_pack.devices) - len(lot.devices),
+                                "class": "_".join(lot_to_pack.executed_steps),
+                                "fromEntity": lot_to_pack.identifier,
+                            } if len(lot_to_pack.devices) - len(lot.devices) else None
+                        ],
+                        "_devices": lot_to_pack.devices.copy()
+                    }
+                )
+
+                [lot_to_pack.devices.remove(d) for d in lot.devices]
+                print(f"{lot_to_pack.identifier} [{self.env.now}] - Splitted {lot.identifier}")
+
+                devices_to_pack = [d for d in devices_to_pack if d[1] not in remainder_devices]
+                self.remainder = list(zip([lot]*len(remainder_devices), remainder_devices))
+            else:
+                self.remainder = []
+
+            # Create packing units
+            devices_list = list(zip(*(iter(devices_to_pack),)*self.packing_size))
             i = 0
             for devices in devices_list:
-                # Only create 'complete' packing units
-                if len(devices) != self.packing_size:
-                    continue
-
                 packing_unit_id = f"{lot_to_pack.identifier}_Pack{i}"
 
                 # Collect all devices per lot and 'construct' input quantities
@@ -150,6 +200,6 @@ class PackingResource:
                     }
                 )
 
-                [self.remainder.remove(d) for d in devices]
+                [devices_to_pack.remove(d) for d in devices]
                 self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = [d[1] for d in devices]
                 i += 1

@@ -68,6 +68,8 @@ class SimulationEventLogging:
                 aggregated_entities.extend(event_lot)
             else:
                 aggregated_entities.append(event_lot)
+            event_pu = event.get("packingUnit")
+            aggregated_entities.append(event_pu)
 
         aggregated_entities = [
             {
@@ -108,6 +110,10 @@ class SimulationEventLogging:
                             "@type": "@id"
                         },
                         "fromEntity": {
+                            "@type": "@id"
+                        },
+                        "packingUnit": {
+                            "@id": "prov:entity",
                             "@type": "@id"
                         }
                     }
