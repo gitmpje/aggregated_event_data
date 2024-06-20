@@ -127,7 +127,8 @@ class PackingResource:
                     lot_to_pack.required_steps.copy(),
                     dict(),
                     dict(),
-                    remainder_devices
+                    remainder_devices,
+                    lot_to_pack.executed_steps.copy()
                 )
 
                 yield self.env.timeout(
@@ -144,7 +145,7 @@ class PackingResource:
                         "outputQuantity": [
                             {
                                 "amount": len(lot.devices),
-                                "class": "_".join(lot_to_pack.executed_steps),
+                                "class": "_".join(lot.executed_steps),
                                 "fromEntity": lot.identifier,
                             },
                             {

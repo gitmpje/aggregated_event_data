@@ -114,7 +114,8 @@ class Controller:
                 target_lot.required_steps.copy(),
                 dict(),
                 dict(),
-                devices_list[i]
+                devices_list[i],
+                target_lot.executed_steps.copy()
             )
 
             splitted_lots.append(lot)
@@ -133,7 +134,7 @@ class Controller:
                 "outputQuantity": [
                     {
                         "amount": len(lot.devices),
-                        "class": "_".join(target_lot.executed_steps),
+                        "class": "_".join(lot.executed_steps),
                         "fromEntity": lot.identifier,
                     }
                     for lot in splitted_lots
