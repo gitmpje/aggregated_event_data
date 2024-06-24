@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 from json import load
 from pathlib import Path
+from random import seed
 from simpy import Environment, Store
 
 path_root = Path(__file__).parents[1]
@@ -21,12 +22,15 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("config_file", help="Path to simulation configuration file.")
+    parser.add_argument("-s", "--random_seed", help="Maximum simulation time.", default=0)
     parser.add_argument("-r", "--runtime", help="Maximum simulation time.", default=100)
 
     args = parser.parse_args()
 
     with open(args.config_file) as f:
         config = load(f)
+
+    seed(args.random_seed)
 
     production_lots = [
         ProductionLot(

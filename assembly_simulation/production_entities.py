@@ -6,7 +6,7 @@ class ProductionLot:
             merge_configuration: dict,
             split_configuration: dict,
             devices: list,
-            executed_steps: list = []
+            executed_steps: list = None
         ):
 
         self.identifier = identifier
@@ -15,5 +15,5 @@ class ProductionLot:
         self.split = split_configuration
         self.devices = devices
 
-        self.executed_steps = executed_steps
+        self.executed_steps = executed_steps if executed_steps else []
         self.closed = False

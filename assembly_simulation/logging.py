@@ -68,6 +68,13 @@ class SimulationEventLogging:
                 aggregated_entities.extend(event_lot)
             else:
                 aggregated_entities.append(event_lot)
+
+            event_child_lot = event.get("childLot", [])
+            if isinstance(event_child_lot, list):
+                aggregated_entities.extend(event_child_lot)
+            else:
+                aggregated_entities.append(event_child_lot)
+
             event_pu = event.get("packingUnit")
             aggregated_entities.append(event_pu)
 

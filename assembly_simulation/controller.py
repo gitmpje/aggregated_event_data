@@ -98,7 +98,6 @@ class Controller:
             lot.devices = []
             print(f"{target_lot.identifier} [{self.env.now}] - Merged {lot.identifier}")
 
-        target_lot.executed_steps.append("Merge")
         yield self.lot_store.put(target_lot)
 
     def lot_splitting(self, target_lot: ProductionLot):
@@ -109,6 +108,7 @@ class Controller:
             # Do not create lots without devices
             if not devices_list[i]:
                 continue
+
             lot = ProductionLot(
                 f"{target_lot.identifier}_{i}",
                 target_lot.required_steps.copy(),
@@ -150,4 +150,3 @@ class Controller:
             yield self.lot_store.put(lot)
 
         target_lot.devices = []
-        target_lot.executed_steps.append("Split")
