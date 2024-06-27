@@ -53,9 +53,14 @@ class ProductionResource:
             yield self.env.timeout(
                 expovariate(self.mean_move),
                 value={
-                    "lot": lot.identifier,
-                    "resource": self.identifier,
-                    "eventType": "Start",
+                    "eventType": "Object",
+                    "bizStep": "arriving",
+                    "entity": lot.identifier,
+                    "location": self.identifier,
+                    "quantity": {
+                        "amount": len(lot.devices),
+                        "class": lot.identifier,
+                    },
                     "_devices": lot.devices.copy()
                 }
             )
@@ -68,9 +73,14 @@ class ProductionResource:
                     yield self.env.timeout(
                         done_in,
                         value={
-                            "lot": lot.identifier,
-                            "resource": self.identifier,
-                            "eventType": "Finish",
+                            "eventType": "Object",
+                            "bizStep": "departing",
+                            "entity": lot.identifier,
+                            "location": self.identifier,
+                            "quantity": {
+                                "amount": len(lot.devices),
+                                "class": lot.identifier,
+                            },
                             "_devices": lot.devices.copy()
                         }
                     )
@@ -112,75 +122,27 @@ class PackingResource:
             shuffle(lot_to_pack.devices)
 
             # Create list with lot-device pairs
-            devices_to_pack = self.remainder.copy()
-            devices_to_pack.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
-
-            # Only create 'complete' packing units, so split 'remainder' (devices)
-            # TODO: use common split method (from controller?)
-            r = len(devices_to_pack) % self.packing_size
-            if r > 0:
-                remainder_devices = [d[1] for d in devices_to_pack[-1*r:]]
-                print(lot_to_pack.identifier, remainder_devices)
-
-                lot = ProductionLot(
-                    f"{lot_to_pack.identifier}_R",
-                    lot_to_pack.required_steps.copy(),
-                    dict(),
-                    dict(),
-                    remainder_devices,
-                    lot_to_pack.executed_steps.copy()
-                )
-
-                yield self.env.timeout(
-                    0.1,
-                    value={
-                        "lot": lot_to_pack.identifier,
-                        "childLot": lot.identifier,
-                        "eventType": "Split",
-                        "inputQuantity": {
-                            "amount": len(lot_to_pack.devices),
-                            "class": "_".join(lot_to_pack.executed_steps),
-                            "fromEntity": lot_to_pack.identifier,
-                        },
-                        "outputQuantity": [
-                            {
-                                "amount": len(lot.devices),
-                                "class": "_".join(lot.executed_steps),
-                                "fromEntity": lot.identifier,
-                            },
-                            {
-                                "amount": len(lot_to_pack.devices) - len(lot.devices),
-                                "class": "_".join(lot_to_pack.executed_steps),
-                                "fromEntity": lot_to_pack.identifier,
-                            } if len(lot_to_pack.devices) - len(lot.devices) else None
-                        ],
-                        "_devices": lot_to_pack.devices.copy()
-                    }
-                )
-
-                [lot_to_pack.devices.remove(d) for d in lot.devices]
-                print(f"{lot_to_pack.identifier} [{self.env.now}] - Splitted {lot.identifier}")
-
-                devices_to_pack = [d for d in devices_to_pack if d[1] not in remainder_devices]
-                self.remainder = list(zip([lot]*len(remainder_devices), remainder_devices))
-            else:
-                self.remainder = []
+            self.remainder.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
 
             # Create packing units
-            devices_list = list(zip(*(iter(devices_to_pack),)*self.packing_size))
+            devices_list = list(zip(*(iter(self.remainder),)*self.packing_size))
             i = 0
             for devices in devices_list:
+                # Only create 'complete' packing units
+                if len(devices) != self.packing_size:
+                    continue
+
                 packing_unit_id = f"{lot_to_pack.identifier}_Pack{i}"
 
                 # Collect all devices per lot and 'construct' input quantities
                 input_devices = defaultdict(list)
                 for d in devices:
                     input_devices[d[0]].append(d[1])
-                input_quantities = [
+
+                child_quantities = [
                     {
                         "amount": len(d),
-                        "class": "_".join(lot.executed_steps),
-                        "fromEntity": lot.identifier,
+                        "class": lot.identifier,
                     }
                     for lot,d in input_devices.items()
                 ]
@@ -188,19 +150,16 @@ class PackingResource:
                 yield self.env.timeout(
                     0.1,
                     value={
-                        "lot": [lot.identifier for lot in input_devices.keys()],
-                        "packingUnit": packing_unit_id,
-                        "eventType": "Pack",
-                        "inputQuantity": input_quantities,
-                        "outputQuantity": {
-                            "amount": len(devices),
-                            "class": "_".join(lot_to_pack.executed_steps),
-                            "fromEntity": packing_unit_id,
-                        },
+                        "eventType": "Aggregation",
+                        "action": "ADD",
+                        "bizStep": "packing",
+                        "parentEntity": packing_unit_id,
+                        "childEntity": [lot.identifier for lot in input_devices.keys()],
+                        "childQuantity": child_quantities,
                         "_devices": [d[1] for d in devices]
                     }
                 )
 
-                [devices_to_pack.remove(d) for d in devices]
+                [self.remainder.remove(d) for d in devices]
                 self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = [d[1] for d in devices]
                 i += 1

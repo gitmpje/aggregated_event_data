@@ -72,25 +72,16 @@ class Controller:
             yield self.env.timeout(
                 0.1,
                 value={
-                    "lot": target_lot.identifier,
-                    "childLot": lot.identifier,
-                    "eventType": "Merge",
-                    "inputQuantity": [
+                    "eventType": "Aggregation",
+                    "action": "ADD",
+                    "parentEntity": target_lot.identifier,
+                    "childEntity": lot.identifier,
+                    "childQuantity": [
                         {
-                            "amount": len(target_lot.devices),
-                            "class": "_".join(lot.executed_steps),
-                            "fromEntity": target_lot.identifier,
-                        },{
                             "amount": len(lot.devices),
-                            "class": "_".join(lot.executed_steps),
-                            "fromEntity": lot.identifier,
+                            "class": lot.identifier,
                         }
                     ],
-                    "outputQuantity": {
-                        "amount": len(target_lot.devices) + len(lot.devices),
-                        "class": "_".join(target_lot.executed_steps),
-                        "fromEntity": target_lot.identifier,
-                    },
                     "_devices": target_lot.devices + lot.devices
                 }
             )
@@ -123,19 +114,14 @@ class Controller:
         yield self.env.timeout(
             0.1,
             value={
-                "lot": target_lot.identifier,
-                "childLot": [lot.identifier for lot in splitted_lots],
-                "eventType": "Split",
-                "inputQuantity": {
-                    "amount": len(target_lot.devices),
-                    "class": "_".join(target_lot.executed_steps),
-                    "fromEntity": target_lot.identifier,
-                },
-                "outputQuantity": [
+                "eventType": "Aggregation",
+                "action": "DELETE",
+                "parentEntity": target_lot.identifier,
+                "childEntity": [lot.identifier for lot in splitted_lots],
+                "childQuantity": [
                     {
                         "amount": len(lot.devices),
-                        "class": "_".join(lot.executed_steps),
-                        "fromEntity": lot.identifier,
+                        "class": lot.identifier,
                     }
                     for lot in splitted_lots
                 ],

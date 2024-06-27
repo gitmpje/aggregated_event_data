@@ -63,28 +63,32 @@ class SimulationEventLogging:
 
         aggregated_entities = []
         for event in self.event_list:
-            event_lot = event.get("lot")
+            #TODO: remove duplication of code
+            event_lot = event.get("entity")
             if isinstance(event_lot, list):
                 aggregated_entities.extend(event_lot)
             else:
                 aggregated_entities.append(event_lot)
 
-            event_child_lot = event.get("childLot", [])
+            event_lot = event.get("parentEntity")
+            if isinstance(event_lot, list):
+                aggregated_entities.extend(event_lot)
+            else:
+                aggregated_entities.append(event_lot)
+
+            event_child_lot = event.get("childEntity", [])
             if isinstance(event_child_lot, list):
                 aggregated_entities.extend(event_child_lot)
             else:
                 aggregated_entities.append(event_child_lot)
 
-            event_pu = event.get("packingUnit")
-            aggregated_entities.append(event_pu)
-
         aggregated_entities = [
             {
                 "@type": "AggregatedEntity",
-                "identifier": lot,
-                "rdfs:label": lot
+                "identifier": e,
+                "rdfs:label": e
             }
-            for lot in set(aggregated_entities)
+            for e in set(aggregated_entities)
         ]
 
         event_log = {
@@ -99,28 +103,23 @@ class SimulationEventLogging:
                     "@context": {
                         "eventIdentifier": "@id",
                         "eventType": "@type",
-                        "timestamp": "prov:atTime",
-                        "lot": {
-                            "@id": "prov:entity",
+                        "entity": {
                             "@type": "@id"
                         },
-                        "childLot": {
-                            "@id": "prov:entity",
+                        "parentEntity": {
                             "@type": "@id"
                         },
-                        "resource": {
-                            "@id": "prov:entity",
+                        "childEntity": {
+                            "@type": "@id"
+                        },
+                        "location": {
                             "@type": "@id"
                         },
                         "_devices": {
                             "@id": "device",
                             "@type": "@id"
                         },
-                        "fromEntity": {
-                            "@type": "@id"
-                        },
-                        "packingUnit": {
-                            "@id": "prov:entity",
+                        "class": {
                             "@type": "@id"
                         }
                     }
