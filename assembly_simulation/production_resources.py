@@ -29,32 +29,44 @@ class ProductionResource:
 
         self.state = "Idle"
         self.queue = PriorityStore(env)
-        self.processing_process = env.process(self.processing())
-        self.breakdown_process = env.process(self.breakdown())
+        self.running_process = env.process(self.running())
 
-    def breakdown(self):
+    def running(self):
         while True:
-            yield self.env.timeout(
-                expovariate(1/self.mean_breakdown)
-            )
-            if self.state == "Processing":
-                # Only break the machine if it is currently working
-                print(f"{self.identifier} [{self.env.now}] - Breakdown")
-                self.processing_process.interrupt()
-                self.state = "Broken"
+            if self.state == "Idle":
+                # Get next production lot in queue to start working on
+                priority_item = yield self.queue.get()
+                lot = priority_item.item
+                done_in = expovariate(1/self.mean_duration)
 
-    def processing(self):
-        # Start working on a production lot
-        while True:
-            priority_item = yield self.queue.get()
-            lot = priority_item.item
+                # Wait for the lot to arrive at the resource
+                yield self.env.timeout(
+                    expovariate(self.mean_move),
+                    value={
+                        "eventType": "Object",
+                        "bizStep": "arriving",
+                        "entity": lot.identifier,
+                        "location": self.identifier,
+                        "quantity": {
+                            "amount": len(lot.devices),
+                            "class": lot.identifier,
+                        },
+                        "_devices": lot.devices.copy()
+                    }
+                )
+                print(f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}")
+            else:
+                # Resume processing a production lot
+                print(f"{self.identifier} [{self.env.now}] - Resume processing {lot.identifier}")
+                done_in = remaining_time
 
-            print(f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}")
-            yield self.env.timeout(
-                expovariate(self.mean_move),
+            start = self.env.now
+            breakdown = self.env.process(self.breakdown())
+            processing = self.env.timeout(
+                done_in,
                 value={
                     "eventType": "Object",
-                    "bizStep": "arriving",
+                    "bizStep": "departing",
                     "entity": lot.identifier,
                     "location": self.identifier,
                     "quantity": {
@@ -64,38 +76,34 @@ class ProductionResource:
                     "_devices": lot.devices.copy()
                 }
             )
-
             self.state = "Processing"
-            done_in = expovariate(1/self.mean_duration)
-            while done_in:
-                start = self.env.now
-                try:
-                    yield self.env.timeout(
-                        done_in,
-                        value={
-                            "eventType": "Object",
-                            "bizStep": "departing",
-                            "entity": lot.identifier,
-                            "location": self.identifier,
-                            "quantity": {
-                                "amount": len(lot.devices),
-                                "class": lot.identifier,
-                            },
-                            "_devices": lot.devices.copy()
-                        }
-                    )
-                    print(f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}")
 
-                    done_in = 0  #set to 0 to exit while loop
-                    self.state = "Idle"
-                    lot.executed_steps.append(self.capability)
-                    self.lot_store.put(lot)
+            yield processing | breakdown
+            if not breakdown.triggered:
+                breakdown.interrupt() # stop breakdown process
+                print(f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}")
 
-                except Interrupt:
-                    done_in -= self.env.now - start  #remaining process time
-                    yield self.env.timeout(expovariate(1/self.mean_repair))
-                    print(f"{self.identifier} [{self.env.now}] - Repaired")
-                    self.state = "Processing"
+                self.state = "Idle"
+                lot.executed_steps.append(self.capability)
+                self.lot_store.put(lot)
+            else:
+                # Breakdown of the resource
+                processing._value = None
+                remaining_time = done_in - (self.env.now - start)  #remaining process time
+
+                self.state = "Broken"
+                yield self.env.timeout(expovariate(1/self.mean_repair))
+                print(f"{self.identifier} [{self.env.now}] - Repaired")
+
+    def breakdown(self):
+        try:
+            yield self.env.timeout(
+                expovariate(1/self.mean_breakdown)
+            )
+            print(f"{self.identifier} [{self.env.now}] - Breakdown")
+        except Interrupt:
+            pass
+
 
 class PackingResource:
     def __init__(
