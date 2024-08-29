@@ -17,9 +17,10 @@ classifiers = [
 Homepage = "https://github.com/gitmpje/aggregated_event_data"
 Issues = "https://github.com/gitmpje/aggregated_event_data/issues"
 
+[tool.poetry.dependencies]
+python = "^3.11"
+simpy = "^4.1"
+
 [build-system]
-requires = [
-  "setuptools>=61.0",
-  "simpy>=4.1"
-]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
