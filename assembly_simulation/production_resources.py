@@ -4,19 +4,19 @@ from simpy import Environment, Interrupt, PriorityStore, Store
 
 from assembly_simulation.production_entities import ProductionLot
 
+
 class ProductionResource:
     def __init__(
-            self,
-            env: Environment,
-            identifier: str,
-            capability: str,
-            mean_move: float,
-            mean_duration: float,
-            mean_breakdown: float,
-            mean_repair: float,
-            lot_store: Store
-        ) -> None:
-
+        self,
+        env: Environment,
+        identifier: str,
+        capability: str,
+        mean_move: float,
+        mean_duration: float,
+        mean_breakdown: float,
+        mean_repair: float,
+        lot_store: Store,
+    ) -> None:
         self.env = env
 
         self.identifier = identifier
@@ -37,7 +37,7 @@ class ProductionResource:
                 # Get next production lot in queue to start working on
                 priority_item = yield self.queue.get()
                 lot = priority_item.item
-                done_in = expovariate(1/self.mean_duration)
+                done_in = expovariate(1 / self.mean_duration)
 
                 # Wait for the lot to arrive at the resource
                 yield self.env.timeout(
@@ -51,13 +51,17 @@ class ProductionResource:
                             "amount": len(lot.devices),
                             "class": lot.identifier,
                         },
-                        "_devices": lot.devices.copy()
-                    }
+                        "_devices": lot.devices.copy(),
+                    },
                 )
-                print(f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}")
+                print(
+                    f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
+                )
             else:
                 # Resume processing a production lot
-                print(f"{self.identifier} [{self.env.now}] - Resume processing {lot.identifier}")
+                print(
+                    f"{self.identifier} [{self.env.now}] - Resume processing {lot.identifier}"
+                )
                 done_in = remaining_time
 
             start = self.env.now
@@ -73,15 +77,17 @@ class ProductionResource:
                         "amount": len(lot.devices),
                         "class": lot.identifier,
                     },
-                    "_devices": lot.devices.copy()
-                }
+                    "_devices": lot.devices.copy(),
+                },
             )
             self.state = "Processing"
 
             yield processing | breakdown
             if not breakdown.triggered:
-                breakdown.interrupt() # stop breakdown process
-                print(f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}")
+                breakdown.interrupt()  # stop breakdown process
+                print(
+                    f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}"
+                )
 
                 self.state = "Idle"
                 lot.executed_steps.append(self.capability)
@@ -89,30 +95,24 @@ class ProductionResource:
             else:
                 # Breakdown of the resource
                 processing._value = None
-                remaining_time = done_in - (self.env.now - start)  #remaining process time
+                remaining_time = done_in - (
+                    self.env.now - start
+                )  # remaining process time
 
                 self.state = "Broken"
-                yield self.env.timeout(expovariate(1/self.mean_repair))
+                yield self.env.timeout(expovariate(1 / self.mean_repair))
                 print(f"{self.identifier} [{self.env.now}] - Repaired")
 
     def breakdown(self):
         try:
-            yield self.env.timeout(
-                expovariate(1/self.mean_breakdown)
-            )
+            yield self.env.timeout(expovariate(1 / self.mean_breakdown))
             print(f"{self.identifier} [{self.env.now}] - Breakdown")
         except Interrupt:
             pass
 
 
 class PackingResource:
-    def __init__(
-            self,
-            env: Environment,
-            packing_size: int,
-            packing_store: Store
-        ):
-
+    def __init__(self, env: Environment, packing_size: int, packing_store: Store):
         self.env = env
         self.identifier = "PackingResource"
         self.packing_size = packing_size
@@ -130,10 +130,12 @@ class PackingResource:
             shuffle(lot_to_pack.devices)
 
             # Create list with lot-device pairs
-            self.remainder.extend(zip([lot_to_pack]*len(lot_to_pack.devices), lot_to_pack.devices))
+            self.remainder.extend(
+                zip([lot_to_pack] * len(lot_to_pack.devices), lot_to_pack.devices)
+            )
 
             # Create packing units
-            devices_list = list(zip(*(iter(self.remainder),)*self.packing_size))
+            devices_list = list(zip(*(iter(self.remainder),) * self.packing_size))
             i = 0
             for devices in devices_list:
                 # Only create 'complete' packing units
@@ -152,7 +154,7 @@ class PackingResource:
                         "amount": len(d),
                         "class": lot.identifier,
                     }
-                    for lot,d in input_devices.items()
+                    for lot, d in input_devices.items()
                 ]
 
                 yield self.env.timeout(
@@ -164,10 +166,12 @@ class PackingResource:
                         "parentEntity": packing_unit_id,
                         "childEntity": [lot.identifier for lot in input_devices.keys()],
                         "childQuantity": child_quantities,
-                        "_devices": [d[1] for d in devices]
-                    }
+                        "_devices": [d[1] for d in devices],
+                    },
                 )
 
                 [self.remainder.remove(d) for d in devices]
-                self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = [d[1] for d in devices]
+                self.packing_units[f"{lot_to_pack.identifier}_Pack{i}"] = [
+                    d[1] for d in devices
+                ]
                 i += 1

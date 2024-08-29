@@ -7,13 +7,15 @@ from functools import partial, wraps
 
 LOGS_FOLDER = "logs"
 
-class SimulationEventLogging:
 
+class SimulationEventLogging:
     def __init__(self, env: Environment, identifier: str):
         self.env = env
         self.identifier = identifier
         self.events_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_events.txt")
-        self.event_log_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_event_log.json")
+        self.event_log_file = os.path.join(
+            LOGS_FOLDER, f"{self.identifier}_event_log.json"
+        )
 
         # Clear event log
         with open(self.events_file, "w") as f:
@@ -32,8 +34,10 @@ class SimulationEventLogging:
         instance just before it is processed.
 
         """
+
         def get_wrapper(env_step, callback):
             """Generate the wrapper for env.step()."""
+
             @wraps(env_step)
             def tracing_step():
                 """Call *callback* for the next event if one exist before
@@ -42,6 +46,7 @@ class SimulationEventLogging:
                     t, prio, eid, event = env._queue[0]
                     callback(t, prio, eid, event)
                 return env_step()
+
             return tracing_step
 
         env.step = get_wrapper(env.step, callback)
@@ -60,10 +65,9 @@ class SimulationEventLogging:
             print(env.now, " - lots in store: ", store.items)
 
     def write_json_event_data(self):
-
         aggregated_entities = []
         for event in self.event_list:
-            #TODO: remove duplication of code
+            # TODO: remove duplication of code
             event_lot = event.get("entity")
             if isinstance(event_lot, list):
                 aggregated_entities.extend(event_lot)
@@ -83,11 +87,7 @@ class SimulationEventLogging:
                 aggregated_entities.append(event_child_lot)
 
         aggregated_entities = [
-            {
-                "@type": "AggregatedEntity",
-                "identifier": e,
-                "rdfs:label": e
-            }
+            {"@type": "AggregatedEntity", "identifier": e, "rdfs:label": e}
             for e in set(aggregated_entities)
         ]
 
@@ -103,36 +103,18 @@ class SimulationEventLogging:
                     "@context": {
                         "eventIdentifier": "@id",
                         "eventType": "@type",
-                        "entity": {
-                            "@type": "@id"
-                        },
-                        "parentEntity": {
-                            "@type": "@id"
-                        },
-                        "childEntity": {
-                            "@type": "@id"
-                        },
-                        "location": {
-                            "@type": "@id"
-                        },
-                        "_devices": {
-                            "@id": "device",
-                            "@type": "@id"
-                        },
-                        "class": {
-                            "@type": "@id"
-                        }
-                    }
+                        "entity": {"@type": "@id"},
+                        "parentEntity": {"@type": "@id"},
+                        "childEntity": {"@type": "@id"},
+                        "location": {"@type": "@id"},
+                        "_devices": {"@id": "device", "@type": "@id"},
+                        "class": {"@type": "@id"},
+                    },
                 },
-                "entities": {
-                    "@container": "@set",
-                    "@context": {
-                        "identifier": "@id"
-                    }
-                }
+                "entities": {"@container": "@set", "@context": {"identifier": "@id"}},
             },
             "events": self.event_list,
-            "entities": aggregated_entities
+            "entities": aggregated_entities,
         }
 
         with open(self.event_log_file, "w") as f:

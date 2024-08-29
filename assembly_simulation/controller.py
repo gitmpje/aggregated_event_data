@@ -16,9 +16,8 @@ class Controller:
         env: Environment,
         resources: Dict[str, list],
         lot_store: Store,
-        packing_store: Store
+        packing_store: Store,
     ):
-
         self.env = env
         self.resources = resources
         self.lot_store = lot_store
@@ -35,15 +34,22 @@ class Controller:
                 self.env.process(self.lot_scheduling(lot_to_schedule))
 
             # Assume merge and split cannot happen after the same step
-            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.merge.get("after_step"):
+            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.merge.get(
+                "after_step"
+            ):
                 # Lots are merged into the first lot in the list
-                if lot_to_schedule.identifier == lot_to_schedule.merge["lot_identifiers"][0]:
+                if (
+                    lot_to_schedule.identifier
+                    == lot_to_schedule.merge["lot_identifiers"][0]
+                ):
                     self.env.process(self.lot_merging(lot_to_schedule))
                 else:
                     yield self.merge_store.put(lot_to_schedule)
                     lot_to_schedule.closed = True
 
-            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.split.get("after_step"):
+            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.split.get(
+                "after_step"
+            ):
                 self.env.process(self.lot_splitting(lot_to_schedule))
                 lot_to_schedule.closed = True
 
@@ -82,8 +88,8 @@ class Controller:
                             "class": lot.identifier,
                         }
                     ],
-                    "_devices": target_lot.devices + lot.devices
-                }
+                    "_devices": target_lot.devices + lot.devices,
+                },
             )
             target_lot.devices.extend(lot.devices)
             lot.devices = []
@@ -106,7 +112,7 @@ class Controller:
                 dict(),
                 dict(),
                 devices_list[i],
-                target_lot.executed_steps.copy()
+                target_lot.executed_steps.copy(),
             )
 
             splitted_lots.append(lot)
@@ -125,11 +131,13 @@ class Controller:
                     }
                     for lot in splitted_lots
                 ],
-                "_devices": target_lot.devices
-            }
+                "_devices": target_lot.devices,
+            },
         )
 
-        print(f"{target_lot.identifier} [{self.env.now}] - Splitted {[lot.identifier for lot in splitted_lots]}")
+        print(
+            f"{target_lot.identifier} [{self.env.now}] - Splitted {[lot.identifier for lot in splitted_lots]}"
+        )
 
         for lot in splitted_lots:
             [target_lot.devices.remove(d) for d in lot.devices]

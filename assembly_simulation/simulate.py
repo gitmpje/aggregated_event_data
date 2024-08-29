@@ -22,7 +22,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("config_file", help="Path to simulation configuration file.")
-    parser.add_argument("-s", "--random_seed", help="Maximum simulation time.", default=0)
+    parser.add_argument("-s", "--random_seed", help="Maximum simulation time.", default=None)
     parser.add_argument("-r", "--runtime", help="Maximum simulation time.", default=100)
 
     args = parser.parse_args()
@@ -30,7 +30,7 @@ def main():
     with open(args.config_file) as f:
         config = load(f)
 
-    seed(args.random_seed)
+    if args.random_seed: seed(args.random_seed)
 
     production_lots = [
         ProductionLot(
@@ -76,7 +76,7 @@ def main():
         packing_store
     )
 
-    simulation_event_logging = SimulationEventLogging(env, Path(args.config_file).stem)
+    simulation_event_logging = SimulationEventLogging(env, f"{Path(args.config_file).stem}{'_'+args.random_seed if args.random_seed else ''}")
     env.run(args.runtime)
     print(packing_resource.packing_units)
 
