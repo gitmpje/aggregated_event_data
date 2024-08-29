@@ -107,12 +107,11 @@ class Controller:
                 continue
 
             lot = ProductionLot(
-                f"{target_lot.identifier}_{i}",
-                target_lot.required_steps.copy(),
-                dict(),
-                dict(),
-                devices_list[i],
-                target_lot.executed_steps.copy(),
+                identifier=f"{target_lot.identifier}_{i}",
+                required_steps=target_lot.required_steps.copy(),
+                required_material=target_lot.required_material.copy(),
+                devices=devices_list[i],
+                executed_steps=target_lot.executed_steps.copy(),
             )
 
             splitted_lots.append(lot)
@@ -140,6 +139,7 @@ class Controller:
         )
 
         for lot in splitted_lots:
+            print(lot.devices)
             [target_lot.devices.remove(d) for d in lot.devices]
             yield self.lot_store.put(lot)
 

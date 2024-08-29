@@ -1,8 +1,6 @@
 from collections import defaultdict
 from random import expovariate, shuffle
-from simpy import Environment, Interrupt, PriorityStore, Store
-
-from assembly_simulation.production_entities import ProductionLot
+from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
 
 
 class ProductionResource:
@@ -16,6 +14,7 @@ class ProductionResource:
         mean_breakdown: float,
         mean_repair: float,
         lot_store: Store,
+        material_lot_store: FilterStore = None,
     ) -> None:
         self.env = env
 
@@ -26,12 +25,14 @@ class ProductionResource:
         self.mean_breakdown = mean_breakdown
         self.mean_repair = mean_repair
         self.lot_store = lot_store
+        self.material_lot_store = material_lot_store
 
         self.state = "Idle"
         self.queue = PriorityStore(env)
         self.running_process = env.process(self.running())
 
     def running(self):
+        remaining_time = None
         while True:
             if self.state == "Idle":
                 # Get next production lot in queue to start working on
@@ -54,6 +55,31 @@ class ProductionResource:
                         "_devices": lot.devices.copy(),
                     },
                 )
+                print(
+                    f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
+                )
+
+                # Consume materials (if required)
+                req_mat = lot.required_material.get(self.capability)
+                material_lots = []
+                if req_mat:
+                    required_quantity = len(lot.devices)
+                    while required_quantity > 0:
+                        mat_lot = yield self.material_lot_store.get(
+                            lambda mat_lot: mat_lot.type == req_mat
+                        )
+                        # Take at maximum the quantity of material present in the lot
+                        q_consume = min(required_quantity, mat_lot.quantity)
+                        mat_lot.quantity -= q_consume
+
+                        # Close lot if it is empty, otherwise return it to the store
+                        if mat_lot.quantity == 0:
+                            mat_lot.closed = True
+                        required_quantity -= q_consume
+
+                        # Keep material lots while processing
+                        material_lots.append((mat_lot, q_consume))
+
                 print(
                     f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
                 )
@@ -85,11 +111,43 @@ class ProductionResource:
             yield processing | breakdown
             if not breakdown.triggered:
                 breakdown.interrupt()  # stop breakdown process
+
+                # Log the consumption of materials
+                print(
+                    f"{self.identifier} [{self.env.now}] - Consumed materials for for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
+                )
+
+                input_quantity = [
+                    {"amount": q, "class": m.identifier} for m, q in material_lots
+                ]
+                input_quantity.append(
+                    {"amount": len(lot.devices), "class": lot.identifier}
+                )
+                yield self.env.timeout(
+                    1 / 1000,
+                    value={
+                        "eventType": "Transformation",
+                        "bizStep": "assembling",
+                        "location": self.identifier,
+                        "inputQuantity": input_quantity,
+                        "outputQuantity": {
+                            "amount": len(lot.devices),
+                            "class": lot.identifier,
+                        },
+                        "_devices": lot.devices.copy(),
+                    },
+                )
+
+                for mat_lot, q in material_lots:
+                    if mat_lot.closed:
+                        self.material_lot_store.put(mat_lot)
+
                 print(
                     f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}"
                 )
 
                 self.state = "Idle"
+                material_lots = []
                 lot.executed_steps.append(self.capability)
                 self.lot_store.put(lot)
             else:

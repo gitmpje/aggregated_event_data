@@ -3,7 +3,23 @@
 Package for simulating an (assembly) environment where products/devices are traced on an aggregated level.
 
 
-<!-- ## Features -->
+## Features
+
+### Production Entity
+
+### Production Resources
+* Each resource can execute one type of production step (or has one capability)
+* Process time is exponentially distributed, with a fixed mean per resource. The process time is (currently) independent of the number of devices processed.
+
+### Material Lots
+* Shared store with material lots where all production resources have access to.
+* Each device 'consumes' one unit of material at a production step.
+
+### Controller
+* Uses simple heuristic to schedule each lot at a resource with the shortest queue.
+
+### Logging
+* The logging is based on the EPCIS 2.0 vocabulary.
 
 
 <!-- ### Project Structure -->
