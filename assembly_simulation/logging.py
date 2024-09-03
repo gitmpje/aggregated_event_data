@@ -6,6 +6,13 @@ from simpy import Environment
 from functools import partial, wraps
 
 LOGS_FOLDER = "logs"
+ENTITY_PATHS = [
+    "entity",
+    "parentEntity",
+    "childEntity",
+    "inputQuantity.class",
+    "outputQuantity.class",
+]
 
 
 class SimulationEventLogging:
@@ -64,27 +71,26 @@ class SimulationEventLogging:
             yield env.timeout(1)
             print(env.now, " - lots in store: ", store.items)
 
+    def get_entities(self, event_dict):
+        entities = []
+        for path in ENTITY_PATHS:
+            v = event_dict
+            for k in path.split("."):
+                if isinstance(v, list):
+                    for i in v:
+                        entities.append(i[k])
+                else:
+                    v = v.get(k)
+                    if not v:
+                        break
+                    elif isinstance(v, str):
+                        entities.append(v)
+        return entities
+
     def write_json_event_data(self):
         aggregated_entities = []
         for event in self.event_list:
-            # TODO: remove duplication of code
-            event_lot = event.get("entity")
-            if isinstance(event_lot, list):
-                aggregated_entities.extend(event_lot)
-            else:
-                aggregated_entities.append(event_lot)
-
-            event_lot = event.get("parentEntity")
-            if isinstance(event_lot, list):
-                aggregated_entities.extend(event_lot)
-            else:
-                aggregated_entities.append(event_lot)
-
-            event_child_lot = event.get("childEntity", [])
-            if isinstance(event_child_lot, list):
-                aggregated_entities.extend(event_child_lot)
-            else:
-                aggregated_entities.append(event_child_lot)
+            aggregated_entities.extend(self.get_entities(event))
 
         aggregated_entities = [
             {"@type": "AggregatedEntity", "identifier": e, "rdfs:label": e}
