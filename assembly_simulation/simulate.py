@@ -53,7 +53,10 @@ def main():
             required_material=r.get("required_material", dict()),
             merge_configuration=r["merge"],
             split_configuration=r["split"],
-            devices=[f"{r['id']}_Device{d}" for d in range(r["n_devices"])],
+            devices=[
+                {"identifier": f"{r['id']}_Device{d}", "materials": []}
+                for d in range(r["n_devices"])
+            ],
         )
         for r in config["production_lots"]
     ]

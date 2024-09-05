@@ -1,3 +1,4 @@
+from copy import deepcopy
 from simpy import Environment
 from typing import List
 
@@ -14,7 +15,7 @@ class Lot:
 
         self.env.logging.register_entity(self)
 
-    def create(self, amount: int, devices: List[str] = []):
+    def create(self, amount: int, devices: List[dict] = [], materials: List[str] = []):
         yield self.env.timeout(
             0,
             value={
@@ -25,7 +26,8 @@ class Lot:
                     "amount": amount,
                     "class": self.identifier,
                 },
-                "_devices": devices,
+                "_devices": deepcopy(devices),
+                "_materials": materials.copy(),
             },
         )
 
@@ -36,7 +38,7 @@ class ProductionLot(Lot):
         *args,
         required_steps: list,
         required_material: dict,
-        devices: list,
+        devices: List[dict],
         merge_configuration: dict = dict(),
         split_configuration: dict = dict(),
         executed_steps: list = None,
@@ -52,7 +54,7 @@ class ProductionLot(Lot):
 
         self.executed_steps = executed_steps if executed_steps else []
 
-        self.env.process(self.create(len(self.devices), self.devices))
+        self.env.process(self.create(len(self.devices), devices=self.devices))
 
 
 class MaterialLot(Lot):
@@ -68,7 +70,9 @@ class MaterialLot(Lot):
         self.type = type
         self.quantity = quantity
 
-        self.env.process(self.create(self.quantity))
+        self.materials = [f"{self.identifier}_Material{d}" for d in range(quantity)]
+
+        self.env.process(self.create(self.quantity, materials=self.materials))
 
 
 class PackingUnit(Lot):

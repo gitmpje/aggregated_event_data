@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from random import expovariate, shuffle
 from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
 
@@ -54,7 +55,7 @@ class ProductionResource:
                             "amount": len(lot.devices),
                             "class": lot.identifier,
                         },
-                        "_devices": lot.devices.copy(),
+                        "_devices": deepcopy(lot.devices),
                     },
                 )
 
@@ -62,19 +63,22 @@ class ProductionResource:
                 req_mat = lot.required_material.get(self.capability)
                 material_lots = []
                 if req_mat:
-                    required_quantity = len(lot.devices)
-                    while required_quantity > 0:
+                    requires_material = lot.devices.copy()
+                    while requires_material:
                         mat_lot = yield self.material_lot_store.get(
                             lambda mat_lot: mat_lot.type == req_mat
                         )
                         # Take at maximum the quantity of material present in the lot
-                        q_consume = min(required_quantity, mat_lot.quantity)
+                        q_consume = min(len(requires_material), mat_lot.quantity)
                         mat_lot.quantity -= q_consume
+
+                        for i in range(q_consume):
+                            device = requires_material.pop()
+                            device["materials"].append(mat_lot.materials.pop())
 
                         # Close lot if it is empty, otherwise return it to the store
                         if mat_lot.quantity == 0:
                             mat_lot.closed = True
-                        required_quantity -= q_consume
 
                         # Keep material lots while processing
                         material_lots.append((mat_lot, q_consume))
@@ -102,7 +106,7 @@ class ProductionResource:
                         "amount": len(lot.devices),
                         "class": lot.identifier,
                     },
-                    "_devices": lot.devices.copy(),
+                    "_devices": deepcopy(lot.devices),
                 },
             )
             self.state = "Processing"
@@ -133,7 +137,7 @@ class ProductionResource:
                             "amount": len(lot.devices),
                             "class": lot.identifier,
                         },
-                        "_devices": lot.devices.copy(),
+                        "_devices": deepcopy(lot.devices),
                     },
                 )
 

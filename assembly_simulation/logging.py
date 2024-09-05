@@ -102,7 +102,19 @@ class SimulationEventLogging:
                         "parentEntity": {"@type": "@id"},
                         "childEntity": {"@type": "@id"},
                         "location": {"@type": "@id"},
-                        "_devices": {"@id": "device", "@type": "@id"},
+                        "_devices": {
+                            "@id": "device",
+                            "@container": "@set",
+                            "@context": {
+                                "identifier": "@id",
+                                "materials": {
+                                    "@id": "material",
+                                    "@container": "@set",
+                                    "@type": "@id",
+                                },
+                            },
+                        },
+                        "_materials": {"@id": "material", "@type": "@id"},
                         "class": {"@type": "@id"},
                     },
                 },
