@@ -107,6 +107,7 @@ class Controller:
                 continue
 
             lot = ProductionLot(
+                env=self.env,
                 identifier=f"{target_lot.identifier}_{i}",
                 required_steps=target_lot.required_steps.copy(),
                 required_material=target_lot.required_material.copy(),

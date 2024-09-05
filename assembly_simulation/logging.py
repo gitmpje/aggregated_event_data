@@ -19,10 +19,12 @@ class SimulationEventLogging:
     def __init__(self, env: Environment, identifier: str):
         self.env = env
         self.identifier = identifier
+
         self.events_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_events.txt")
         self.event_log_file = os.path.join(
             LOGS_FOLDER, f"{self.identifier}_event_log.json"
         )
+        self.aggregated_entities = []
 
         # Clear event log
         with open(self.events_file, "w") as f:
@@ -71,30 +73,17 @@ class SimulationEventLogging:
             yield env.timeout(1)
             print(env.now, " - lots in store: ", store.items)
 
-    def get_entities(self, event_dict):
-        entities = []
-        for path in ENTITY_PATHS:
-            v = event_dict
-            for k in path.split("."):
-                if isinstance(v, list):
-                    for i in v:
-                        entities.append(i[k])
-                else:
-                    v = v.get(k)
-                    if not v:
-                        break
-                    elif isinstance(v, str):
-                        entities.append(v)
-        return entities
+    def register_entity(self, entity: object):
+        self.aggregated_entities.append(entity)
 
     def write_json_event_data(self):
-        aggregated_entities = []
-        for event in self.event_list:
-            aggregated_entities.extend(self.get_entities(event))
-
         aggregated_entities = [
-            {"@type": "AggregatedEntity", "identifier": e, "rdfs:label": e}
-            for e in set(aggregated_entities)
+            {
+                "@type": ["AggregatedEntity", e.__class__.__name__],
+                "identifier": e.identifier,
+                "rdfs:label": e.identifier,
+            }
+            for e in set(self.aggregated_entities)
         ]
 
         event_log = {

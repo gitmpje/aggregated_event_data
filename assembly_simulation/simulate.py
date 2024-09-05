@@ -37,8 +37,17 @@ def main():
     if args.random_seed:
         seed(args.random_seed)
 
+    # Instantiate environment and logging
+    env = Environment()
+    simulation_event_logging = SimulationEventLogging(
+        env,
+        f"{Path(args.config_file).stem}{'_'+args.random_seed if args.random_seed else ''}",
+    )
+    env.logging = simulation_event_logging
+
     production_lots = [
         ProductionLot(
+            env=env,
             identifier=r["id"],
             required_steps=r["steps"],
             required_material=r.get("required_material", dict()),
@@ -60,13 +69,15 @@ def main():
         material_lots.extend(
             [
                 MaterialLot(
-                    identifier=f"{m}_{i}", type=m, quantity=config["material_lot_size"]
+                    env=env,
+                    identifier=f"{m}_{i}",
+                    type=m,
+                    quantity=config["material_lot_size"],
                 )
                 for i in range(ceil(q / config["material_lot_size"]))
             ]
         )
 
-    env = Environment()
     production_lots_store = Store(env)
     production_lots_store.items = production_lots
     material_lots_store = FilterStore(env)
@@ -98,10 +109,6 @@ def main():
         env, production_resources_dict, production_lots_store, packing_store
     )
 
-    simulation_event_logging = SimulationEventLogging(
-        env,
-        f"{Path(args.config_file).stem}{'_'+args.random_seed if args.random_seed else ''}",
-    )
     env.run(args.runtime)
     print(packing_resource.packing_units)
 

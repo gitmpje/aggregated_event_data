@@ -2,6 +2,8 @@ from collections import defaultdict
 from random import expovariate, shuffle
 from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
 
+from assembly_simulation.production_entities import PackingUnit
+
 
 class ProductionResource:
     def __init__(
@@ -198,6 +200,7 @@ class PackingResource:
                     continue
 
                 packing_unit_id = f"{lot_to_pack.identifier}_Pack{i}"
+                PackingUnit(self.env, packing_unit_id)
 
                 # Collect all devices per lot and 'construct' input quantities
                 input_devices = defaultdict(list)
