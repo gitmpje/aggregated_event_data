@@ -55,9 +55,6 @@ class ProductionResource:
                         "_devices": lot.devices.copy(),
                     },
                 )
-                print(
-                    f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
-                )
 
                 # Consume materials (if required)
                 req_mat = lot.required_material.get(self.capability)
@@ -114,7 +111,7 @@ class ProductionResource:
 
                 # Log the consumption of materials
                 print(
-                    f"{self.identifier} [{self.env.now}] - Consumed materials for for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
+                    f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
                 )
 
                 input_quantity = [
@@ -139,7 +136,7 @@ class ProductionResource:
                 )
 
                 for mat_lot, q in material_lots:
-                    if mat_lot.closed:
+                    if not mat_lot.closed:
                         self.material_lot_store.put(mat_lot)
 
                 print(

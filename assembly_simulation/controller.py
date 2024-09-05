@@ -139,7 +139,6 @@ class Controller:
         )
 
         for lot in splitted_lots:
-            print(lot.devices)
             [target_lot.devices.remove(d) for d in lot.devices]
             yield self.lot_store.put(lot)
 
