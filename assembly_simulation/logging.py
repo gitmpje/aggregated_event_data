@@ -5,14 +5,9 @@ from simpy import Environment
 
 from functools import partial, wraps
 
+from assembly_simulation.production_entities import Lot
+
 LOGS_FOLDER = "logs"
-ENTITY_PATHS = [
-    "entity",
-    "parentEntity",
-    "childEntity",
-    "inputQuantity.class",
-    "outputQuantity.class",
-]
 
 
 class SimulationEventLogging:
@@ -24,7 +19,8 @@ class SimulationEventLogging:
         self.event_log_file = os.path.join(
             LOGS_FOLDER, f"{self.identifier}_event_log.json"
         )
-        self.aggregated_entities = []
+        self.aggregated_entities = set()
+        self.products = set()
 
         # Clear event log
         with open(self.events_file, "w") as f:
@@ -73,8 +69,11 @@ class SimulationEventLogging:
             yield env.timeout(1)
             print(env.now, " - lots in store: ", store.items)
 
-    def register_entity(self, entity: object):
-        self.aggregated_entities.append(entity)
+    def register_aggregated_entity(self, entity: Lot):
+        self.aggregated_entities.add(entity)
+
+    def register_product(self, product: str):
+        self.products.add(product)
 
     def write_json_event_data(self):
         aggregated_entities = [
@@ -83,7 +82,15 @@ class SimulationEventLogging:
                 "identifier": e.identifier,
                 "rdfs:label": e.identifier,
             }
-            for e in set(self.aggregated_entities)
+            for e in self.aggregated_entities
+        ]
+
+        products = [
+            {
+                "@type": "Product",
+                "rdfs:label": p.split("/")[-1],
+            }
+            for p in self.products
         ]
 
         event_log = {
@@ -122,6 +129,7 @@ class SimulationEventLogging:
             },
             "events": self.event_list,
             "entities": aggregated_entities,
+            "products": products,
         }
 
         with open(self.event_log_file, "w") as f:

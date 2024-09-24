@@ -85,7 +85,10 @@ class Controller:
                     "childQuantity": [
                         {
                             "amount": len(lot.devices),
-                            "class": lot.identifier,
+                            "class": [
+                                lot.identifier,
+                                lot.get_lot_model(),
+                            ],
                         }
                     ],
                     "_devices": target_lot.devices + lot.devices,
@@ -127,7 +130,10 @@ class Controller:
                 "childQuantity": [
                     {
                         "amount": len(lot.devices),
-                        "class": lot.identifier,
+                        "class": [
+                            lot.identifier,
+                            lot.get_lot_model(),
+                        ],
                     }
                     for lot in splitted_lots
                 ],

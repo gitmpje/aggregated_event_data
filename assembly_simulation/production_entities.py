@@ -13,7 +13,7 @@ class Lot:
         self.identifier = identifier
         self.closed = False
 
-        self.env.logging.register_entity(self)
+        self.env.logging.register_aggregated_entity(self)
 
     def create(self, amount: int, devices: List[dict] = [], materials: List[str] = []):
         yield self.env.timeout(
@@ -24,12 +24,27 @@ class Lot:
                 "entity": self.identifier,
                 "quantity": {
                     "amount": amount,
-                    "class": self.identifier,
+                    "class": [
+                        self.identifier,
+                        self.get_lot_model(),
+                    ],
                 },
                 "_devices": deepcopy(devices),
                 "_materials": materials.copy(),
             },
         )
+
+    def get_lot_model(self) -> None:
+        if hasattr(self, "material_type"):
+            lot_model = "lotModel/" + self.material_type
+        elif hasattr(self, "executed_steps"):
+            # Lot model is based on the operations executed on the lot
+            lot_model = "lotModel/" + "-".join(set(self.executed_steps))
+        else:
+            raise AttributeError(f"Type of lot {self.identifier} is not defined!")
+
+        self.env.logging.register_product(lot_model)
+        return lot_model
 
 
 class ProductionLot(Lot):
@@ -61,13 +76,13 @@ class MaterialLot(Lot):
     def __init__(
         self,
         *args,
-        type: str,
+        material_type: str,
         quantity: int,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        self.type = type
+        self.material_type = material_type
         self.quantity = quantity
 
         self.materials = [f"{self.identifier}_Material{d}" for d in range(quantity)]

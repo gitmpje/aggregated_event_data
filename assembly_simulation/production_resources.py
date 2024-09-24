@@ -53,7 +53,10 @@ class ProductionResource:
                         "location": self.identifier,
                         "quantity": {
                             "amount": len(lot.devices),
-                            "class": lot.identifier,
+                            "class": [
+                                lot.identifier,
+                                lot.get_lot_model(),
+                            ],
                         },
                         "_devices": deepcopy(lot.devices),
                     },
@@ -66,7 +69,7 @@ class ProductionResource:
                     requires_material = lot.devices.copy()
                     while requires_material:
                         mat_lot = yield self.material_lot_store.get(
-                            lambda mat_lot: mat_lot.type == req_mat
+                            lambda mat_lot: mat_lot.material_type == req_mat
                         )
                         # Take at maximum the quantity of material present in the lot
                         q_consume = min(len(requires_material), mat_lot.quantity)
@@ -95,6 +98,7 @@ class ProductionResource:
 
             start = self.env.now
             breakdown = self.env.process(self.breakdown())
+            lot.executed_steps.append(self.capability)
             processing = self.env.timeout(
                 done_in,
                 value={
@@ -104,7 +108,10 @@ class ProductionResource:
                     "location": self.identifier,
                     "quantity": {
                         "amount": len(lot.devices),
-                        "class": lot.identifier,
+                        "class": [
+                            lot.identifier,
+                            lot.get_lot_model(),
+                        ],
                     },
                     "_devices": deepcopy(lot.devices),
                 },
@@ -121,10 +128,14 @@ class ProductionResource:
                 )
 
                 input_quantity = [
-                    {"amount": q, "class": m.identifier} for m, q in material_lots
+                    {"amount": q, "class": [m.identifier, m.get_lot_model()]}
+                    for m, q in material_lots
                 ]
                 input_quantity.append(
-                    {"amount": len(lot.devices), "class": lot.identifier}
+                    {
+                        "amount": len(lot.devices),
+                        "class": [lot.identifier, lot.get_lot_model()],
+                    }
                 )
                 yield self.env.timeout(
                     1 / 1000,
@@ -135,7 +146,10 @@ class ProductionResource:
                         "inputQuantity": input_quantity,
                         "outputQuantity": {
                             "amount": len(lot.devices),
-                            "class": lot.identifier,
+                            "class": [
+                                lot.identifier,
+                                lot.get_lot_model(),
+                            ],
                         },
                         "_devices": deepcopy(lot.devices),
                     },
@@ -151,7 +165,6 @@ class ProductionResource:
 
                 self.state = "Idle"
                 material_lots = []
-                lot.executed_steps.append(self.capability)
                 self.lot_store.put(lot)
             else:
                 # Breakdown of the resource
@@ -214,7 +227,10 @@ class PackingResource:
                 child_quantities = [
                     {
                         "amount": len(d),
-                        "class": lot.identifier,
+                        "class": [
+                            lot.identifier,
+                            lot.get_lot_model(),
+                        ],
                     }
                     for lot, d in input_devices.items()
                 ]

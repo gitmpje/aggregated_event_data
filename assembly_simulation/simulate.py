@@ -74,7 +74,7 @@ def main():
                 MaterialLot(
                     env=env,
                     identifier=f"{m}_{i}",
-                    type=m,
+                    material_type=m,
                     quantity=config["material_lot_size"],
                 )
                 for i in range(ceil(q / config["material_lot_size"]))

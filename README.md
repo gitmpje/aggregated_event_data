@@ -11,7 +11,10 @@ Package for simulating an (assembly) environment where products/devices are trac
 * Each resource can execute one type of production step (or has one capability)
 * Process time is exponentially distributed, with a fixed mean per resource. The process time is (currently) independent of the number of devices processed.
 
-### Material Lots
+### Production entities
+* Lot type is based on the operations executed on the lot.
+
+#### Material Lots
 * Shared store with material lots where all production resources have access to.
 * Each device 'consumes' one unit of material at a production step.
 
