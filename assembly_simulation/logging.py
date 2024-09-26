@@ -88,7 +88,8 @@ class SimulationEventLogging:
         products = [
             {
                 "@type": "Product",
-                "rdfs:label": p.split("/")[-1],
+                "identifier": p.identifier,
+                "rdfs:label": p.identifier,
             }
             for p in self.products
         ]
@@ -126,6 +127,7 @@ class SimulationEventLogging:
                     },
                 },
                 "entities": {"@container": "@set", "@context": {"identifier": "@id"}},
+                "products": {"@container": "@set", "@context": {"identifier": "@id"}},
             },
             "events": self.event_list,
             "entities": aggregated_entities,

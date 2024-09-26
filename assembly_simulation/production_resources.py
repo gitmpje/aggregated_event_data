@@ -55,7 +55,7 @@ class ProductionResource:
                             "amount": len(lot.devices),
                             "class": [
                                 lot.identifier,
-                                lot.get_lot_model(),
+                                lot.get_lot_model().identifier,
                             ],
                         },
                         "_devices": deepcopy(lot.devices),
@@ -110,7 +110,7 @@ class ProductionResource:
                         "amount": len(lot.devices),
                         "class": [
                             lot.identifier,
-                            lot.get_lot_model(),
+                            lot.get_lot_model().identifier,
                         ],
                     },
                     "_devices": deepcopy(lot.devices),
@@ -128,13 +128,13 @@ class ProductionResource:
                 )
 
                 input_quantity = [
-                    {"amount": q, "class": [m.identifier, m.get_lot_model()]}
+                    {"amount": q, "class": [m.identifier, m.get_lot_model().identifier]}
                     for m, q in material_lots
                 ]
                 input_quantity.append(
                     {
                         "amount": len(lot.devices),
-                        "class": [lot.identifier, lot.get_lot_model()],
+                        "class": [lot.identifier, lot.get_lot_model().identifier],
                     }
                 )
                 yield self.env.timeout(
@@ -148,7 +148,7 @@ class ProductionResource:
                             "amount": len(lot.devices),
                             "class": [
                                 lot.identifier,
-                                lot.get_lot_model(),
+                                lot.get_lot_model().identifier,
                             ],
                         },
                         "_devices": deepcopy(lot.devices),
@@ -229,7 +229,7 @@ class PackingResource:
                         "amount": len(d),
                         "class": [
                             lot.identifier,
-                            lot.get_lot_model(),
+                            lot.get_lot_model().identifier,
                         ],
                     }
                     for lot, d in input_devices.items()

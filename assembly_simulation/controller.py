@@ -87,7 +87,7 @@ class Controller:
                             "amount": len(lot.devices),
                             "class": [
                                 lot.identifier,
-                                lot.get_lot_model(),
+                                lot.get_lot_model().identifier,
                             ],
                         }
                     ],
@@ -132,7 +132,7 @@ class Controller:
                         "amount": len(lot.devices),
                         "class": [
                             lot.identifier,
-                            lot.get_lot_model(),
+                            lot.get_lot_model().identifier,
                         ],
                     }
                     for lot in splitted_lots

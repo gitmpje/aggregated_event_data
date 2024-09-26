@@ -26,7 +26,7 @@ class Lot:
                     "amount": amount,
                     "class": [
                         self.identifier,
-                        self.get_lot_model(),
+                        self.get_lot_model().identifier,
                     ],
                 },
                 "_devices": deepcopy(devices),
@@ -36,10 +36,10 @@ class Lot:
 
     def get_lot_model(self) -> None:
         if hasattr(self, "material_type"):
-            lot_model = "lotModel/" + self.material_type
+            lot_model = Product(label=self.material_type, kind="material")
         elif hasattr(self, "executed_steps"):
             # Lot model is based on the operations executed on the lot
-            lot_model = "lotModel/" + "-".join(set(self.executed_steps))
+            lot_model = Product(label="-".join(set(self.executed_steps)), kind="lotModel")
         else:
             raise AttributeError(f"Type of lot {self.identifier} is not defined!")
 
@@ -97,3 +97,14 @@ class PackingUnit(Lot):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
+
+
+class Product:
+    def __init__(
+        self,
+        label: str,
+        kind: str,
+    ) -> None:
+        self.label = label
+        self.kind = kind
+        self.identifier = f"{kind}/{label}"
