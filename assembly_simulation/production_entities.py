@@ -39,7 +39,9 @@ class Lot:
             lot_model = Product(label=self.material_type, kind="material")
         elif hasattr(self, "executed_steps"):
             # Lot model is based on the operations executed on the lot
-            lot_model = Product(label="-".join(set(self.executed_steps)), kind="lotModel")
+            # Excluding merge/split
+            operations = set(self.executed_steps) - set(["merge", "split"])
+            lot_model = Product(label="-".join(operations), kind="lotModel")
         else:
             raise AttributeError(f"Type of lot {self.identifier} is not defined!")
 

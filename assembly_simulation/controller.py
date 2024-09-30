@@ -29,14 +29,14 @@ class Controller:
     def running(self):
         while True:
             lot_to_schedule = yield self.lot_store.get()
-
-            if not lot_to_schedule.executed_steps and lot_to_schedule.required_steps:
-                self.env.process(self.lot_scheduling(lot_to_schedule))
+            last_executed_step = (
+                lot_to_schedule.executed_steps[-1]
+                if lot_to_schedule.executed_steps
+                else ""
+            )
 
             # Assume merge and split cannot happen after the same step
-            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.merge.get(
-                "after_step"
-            ):
+            if last_executed_step == lot_to_schedule.merge.get("after_step"):
                 # Lots are merged into the first lot in the list
                 if (
                     lot_to_schedule.identifier
@@ -47,9 +47,7 @@ class Controller:
                     yield self.merge_store.put(lot_to_schedule)
                     lot_to_schedule.closed = True
 
-            elif lot_to_schedule.executed_steps[-1] == lot_to_schedule.split.get(
-                "after_step"
-            ):
+            elif last_executed_step == lot_to_schedule.split.get("after_step"):
                 self.env.process(self.lot_splitting(lot_to_schedule))
                 lot_to_schedule.closed = True
 
@@ -97,7 +95,9 @@ class Controller:
             target_lot.devices.extend(lot.devices)
             lot.devices = []
             print(f"{target_lot.identifier} [{self.env.now}] - Merged {lot.identifier}")
+            lot.executed_steps.append("merge")
 
+        target_lot.executed_steps.append("merge")
         yield self.lot_store.put(target_lot)
 
     def lot_splitting(self, target_lot: ProductionLot):
@@ -147,6 +147,8 @@ class Controller:
 
         for lot in splitted_lots:
             [target_lot.devices.remove(d) for d in lot.devices]
+            lot.executed_steps.append("split")
             yield self.lot_store.put(lot)
 
         target_lot.devices = []
+        target_lot.executed_steps.append("split")
