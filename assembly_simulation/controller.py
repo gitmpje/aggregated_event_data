@@ -87,6 +87,13 @@ class Controller:
                                 lot.identifier,
                                 lot.get_lot_model().identifier,
                             ],
+                        },
+                        {
+                            "amount": len(target_lot.devices),
+                            "class": [
+                                target_lot.identifier,
+                                target_lot.get_lot_model().identifier,
+                            ],
                         }
                     ],
                     "_devices": target_lot.devices + lot.devices,

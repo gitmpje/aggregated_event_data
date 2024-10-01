@@ -98,15 +98,34 @@ class ProductionResource:
 
             start = self.env.now
             breakdown = self.env.process(self.breakdown())
+
+            # Log the consumption of materials
+            print(
+                f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
+            )
+
+            input_quantity = [
+                {"amount": q, "class": [m.identifier, m.get_lot_model().identifier]}
+                for m, q in material_lots
+            ]
+            input_quantity.append(
+                {
+                    "amount": len(lot.devices),
+                    "class": [lot.identifier, lot.get_lot_model().identifier],
+                }
+            )
+
+            # Update executed steps (for output quantity)
             lot.executed_steps.append(self.capability)
+
             processing = self.env.timeout(
                 done_in,
                 value={
-                    "eventType": "Object",
-                    "bizStep": "departing",
-                    "entity": lot.identifier,
+                    "eventType": "Transformation",
+                    "bizStep": "assembling",
                     "location": self.identifier,
-                    "quantity": {
+                    "inputQuantity": input_quantity,
+                    "outputQuantity": {
                         "amount": len(lot.devices),
                         "class": [
                             lot.identifier,
@@ -114,37 +133,24 @@ class ProductionResource:
                         ],
                     },
                     "_devices": deepcopy(lot.devices),
-                },
+                }
             )
+
             self.state = "Processing"
 
             yield processing | breakdown
             if not breakdown.triggered:
                 breakdown.interrupt()  # stop breakdown process
 
-                # Log the consumption of materials
-                print(
-                    f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
-                )
-
-                input_quantity = [
-                    {"amount": q, "class": [m.identifier, m.get_lot_model().identifier]}
-                    for m, q in material_lots
-                ]
-                input_quantity.append(
-                    {
-                        "amount": len(lot.devices),
-                        "class": [lot.identifier, lot.get_lot_model().identifier],
-                    }
-                )
+                # Depart shortly after assembly (and consumption of materials)
                 yield self.env.timeout(
                     1 / 1000,
                     value={
-                        "eventType": "Transformation",
-                        "bizStep": "assembling",
+                        "eventType": "Object",
+                        "bizStep": "departing",
+                        "entity": lot.identifier,
                         "location": self.identifier,
-                        "inputQuantity": input_quantity,
-                        "outputQuantity": {
+                        "quantity": {
                             "amount": len(lot.devices),
                             "class": [
                                 lot.identifier,
