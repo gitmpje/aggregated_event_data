@@ -21,7 +21,8 @@ class Controller:
         self.env = env
         self.resources = resources
         self.lot_store = lot_store
-        self.merge_store = FilterStore(env)
+        self.merge_store = FilterStore(env)  # merge to specific target lot
+        self.merge_store_model = FilterStore(env)  # merge based on model
         self.packing_store = packing_store
 
         self.controller_running = env.process(self.running())
@@ -38,27 +39,51 @@ class Controller:
             # Assume merge and split cannot happen after the same step
             if last_executed_step == lot_to_schedule.merge.get("after_step"):
                 # Lots are merged into the first lot in the list
-                if (
-                    lot_to_schedule.identifier
-                    == lot_to_schedule.merge["lot_identifiers"][0]
-                ):
-                    self.env.process(self.lot_merging(lot_to_schedule))
-                else:
+                merge_lot_identifier = lot_to_schedule.merge.get(
+                    "lot_identifiers", [None]
+                )[0]
+                if lot_to_schedule.identifier == merge_lot_identifier:
+                    # If lot is target of merge, start merging process
+                    self.env.process(self.merge_lot_multiple(lot_to_schedule))
+                elif merge_lot_identifier:
+                    # If lot has to be merged to specific lot, add to store
                     yield self.merge_store.put(lot_to_schedule)
                     lot_to_schedule.closed = True
+                else:
+                    # Check if there is a lot with the same model in the store
+                    lots_same_model = [
+                        lot
+                        for lot in self.merge_store_model.items
+                        if lot.get_lot_model().identifier
+                        == lot_to_schedule.get_lot_model().identifier
+                    ]
+                    # Merge with one of the lots with the same model
+                    if lots_same_model:
+                        source_lot = yield self.merge_store_model.get(
+                            lambda lot: lot.get_lot_model().identifier
+                            == lot_to_schedule.get_lot_model().identifier
+                        )
+                        self.env.process(
+                            self.merge_lots(
+                                source_lot=source_lot, target_lot=lot_to_schedule
+                            )
+                        )
+                    else:
+                        # Otherwise, put it in the store
+                        yield self.merge_store_model.put(lot_to_schedule)
 
             elif last_executed_step == lot_to_schedule.split.get("after_step"):
-                self.env.process(self.lot_splitting(lot_to_schedule))
+                self.env.process(self.split_lot(lot_to_schedule))
                 lot_to_schedule.closed = True
 
             elif lot_to_schedule.required_steps:
-                self.env.process(self.lot_scheduling(lot_to_schedule))
+                self.env.process(self.schedule_lot(lot_to_schedule))
 
             else:
                 self.packing_store.put(lot_to_schedule)
                 lot_to_schedule.closed = True
 
-    def lot_scheduling(self, lot_to_schedule: ProductionLot):
+    def schedule_lot(self, lot_to_schedule: ProductionLot):
         next_step = lot_to_schedule.required_steps.pop(0)
 
         # Simple heuristic to schedule the lot at the resource with the shortest queue
@@ -70,44 +95,55 @@ class Controller:
 
         yield selected_resource.queue.put(PriorityItem("P1", lot_to_schedule))
 
-    def lot_merging(self, target_lot: ProductionLot):
+    def merge_lot_multiple(self, target_lot: ProductionLot):
         for lot_id in target_lot.merge["lot_identifiers"][1:]:
-            lot = yield self.merge_store.get(lambda lot: lot.identifier == lot_id)
-            yield self.env.timeout(
-                0.1,
-                value={
-                    "eventType": "Aggregation",
-                    "action": "ADD",
-                    "parentEntity": target_lot.identifier,
-                    "childEntity": lot.identifier,
-                    "childQuantity": [
-                        {
-                            "amount": len(lot.devices),
-                            "class": [
-                                lot.identifier,
-                                lot.get_lot_model().identifier,
-                            ],
-                        },
-                        {
-                            "amount": len(target_lot.devices),
-                            "class": [
-                                target_lot.identifier,
-                                target_lot.get_lot_model().identifier,
-                            ],
-                        }
-                    ],
-                    "_devices": target_lot.devices + lot.devices,
-                },
+            source_lot = yield self.merge_store.get(
+                lambda lot: lot.identifier == lot_id
             )
-            target_lot.devices.extend(lot.devices)
-            lot.devices = []
-            print(f"{target_lot.identifier} [{self.env.now}] - Merged {lot.identifier}")
-            lot.executed_steps.append("merge")
+            self.env.process(
+                self.merge_lots(source_lot=source_lot, target_lot=target_lot)
+            )
+        return
 
+    def merge_lots(self, source_lot: ProductionLot, target_lot: ProductionLot):
+        yield self.env.timeout(
+            0.1,
+            value={
+                "eventType": "Aggregation",
+                "action": "ADD",
+                "parentEntity": target_lot.identifier,
+                "childEntity": source_lot.identifier,
+                "childQuantity": [
+                    {
+                        "amount": len(source_lot.devices),
+                        "class": [
+                            source_lot.identifier,
+                            source_lot.get_lot_model().identifier,
+                        ],
+                    },
+                    {
+                        "amount": len(target_lot.devices),
+                        "class": [
+                            target_lot.identifier,
+                            target_lot.get_lot_model().identifier,
+                        ],
+                    },
+                ],
+                "_devices": target_lot.devices + source_lot.devices,
+            },
+        )
+        target_lot.devices.extend(source_lot.devices)
+        source_lot.devices = []
+        print(
+            f"{target_lot.identifier} [{self.env.now}] - Merged {source_lot.identifier}"
+        )
+        source_lot.executed_steps.append("merge")
         target_lot.executed_steps.append("merge")
-        yield self.lot_store.put(target_lot)
 
-    def lot_splitting(self, target_lot: ProductionLot):
+        yield self.lot_store.put(target_lot)
+        return
+
+    def split_lot(self, target_lot: ProductionLot):
         n = target_lot.split["number_of_split_lots"]
         devices_list = partition_list(target_lot.devices, n)
         splitted_lots = []
@@ -123,6 +159,8 @@ class Controller:
                 required_material=target_lot.required_material.copy(),
                 devices=devices_list[i],
                 executed_steps=target_lot.executed_steps.copy(),
+                merge_configuration=target_lot.merge,
+                split_configuration=target_lot.split,
             )
 
             splitted_lots.append(lot)
@@ -159,3 +197,4 @@ class Controller:
 
         target_lot.devices = []
         target_lot.executed_steps.append("split")
+        return
