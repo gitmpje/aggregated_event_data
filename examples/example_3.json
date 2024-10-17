@@ -7,6 +7,7 @@
     "production_resources": [
         {"id": "WT1", "step": "WT", "mean_move": 0.5, "mean_duration": 1, "mean_breakdown": 5, "mean_repair": 1},
         {"id": "DB1", "step": "DB", "mean_move": 0.5, "mean_duration": 2, "mean_breakdown": 5, "mean_repair": 1},
+        {"id": "DB2", "step": "DB", "mean_move": 0.5, "mean_duration": 2, "mean_breakdown": 5, "mean_repair": 1, "process_yield": 0.5},
         {"id": "WB1", "step": "WB", "mean_move": 0.5, "mean_duration": 1, "mean_breakdown": 5, "mean_repair": 1},
         {"id": "WB2", "step": "WB", "mean_move": 0.5, "mean_duration": 2, "mean_breakdown": 5, "mean_repair": 1}
     ],

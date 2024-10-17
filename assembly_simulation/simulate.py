@@ -13,35 +13,27 @@ sys.path.append(str(path_root))
 
 from assembly_simulation.controller import Controller
 from assembly_simulation.logging import SimulationEventLogging
-from assembly_simulation.production_entities import MaterialLot, ProductionLot
+from assembly_simulation.production_entities import Device, MaterialLot, ProductionLot
 from assembly_simulation.production_resources import PackingResource, ProductionResource
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="assembly_simulation",
-        description="",
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument("config_file", help="Path to simulation configuration file.")
-    parser.add_argument(
-        "-s", "--random_seed", help="Maximum simulation time.", default=None
-    )
-    parser.add_argument("-r", "--runtime", help="Maximum simulation time.", default=100)
-
-    args = parser.parse_args()
-
-    with open(args.config_file) as f:
+def main(
+    config_file: str,
+    runtime: int,
+    random_seed: int = None,
+    output_event_log_file: str = None,
+):
+    with open(config_file) as f:
         config = load(f)
 
-    if args.random_seed:
-        seed(args.random_seed)
+    if random_seed:
+        seed(random_seed)
 
     # Instantiate environment and logging
     env = Environment()
+    logging_id = f"{Path(config_file).stem}{'_'+random_seed if random_seed else ''}"
     simulation_event_logging = SimulationEventLogging(
-        env,
-        f"{Path(args.config_file).stem}{'_'+args.random_seed if args.random_seed else ''}",
+        env, identifier=logging_id, event_log_file=output_event_log_file
     )
     env.logging = simulation_event_logging
 
@@ -54,8 +46,7 @@ def main():
             merge_configuration=r["merge"],
             split_configuration=r["split"],
             devices=[
-                {"identifier": f"{r['id']}_Device{d}", "materials": []}
-                for d in range(r["n_devices"])
+                Device(identifier=f"{r['id']}_Device{d}") for d in range(r["n_devices"])
             ],
         )
         for r in config["production_lots"]
@@ -97,6 +88,7 @@ def main():
             mean_repair=r["mean_repair"],
             lot_store=production_lots_store,
             material_lot_store=material_lots_store,
+            process_yield=r.get("process_yield", 1),
         )
         for r in config["production_resources"]
     ]
@@ -112,11 +104,38 @@ def main():
         env, production_resources_dict, production_lots_store, packing_store
     )
 
-    env.run(args.runtime)
+    env.run(runtime)
     print(packing_resource.packing_units)
 
     simulation_event_logging.write_json_event_data()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        prog="assembly_simulation",
+        description="",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument("config_file", help="Path to simulation configuration file.")
+    parser.add_argument(
+        "-s",
+        "--random_seed",
+        help="Seed to be used for the simulation.",
+        default=None,
+    )
+    parser.add_argument(
+        "-o",
+        "--output_event_log_file",
+        help="Name/path of the out file with the event log.",
+        default=None,
+    )
+    parser.add_argument("-r", "--runtime", help="Maximum simulation time.", default=100)
+
+    args = parser.parse_args()
+
+    main(
+        config_file=args.config_file,
+        runtime=args.runtime,
+        random_seed=args.random_seed,
+        output_event_log_file=args.output_event_log_file,
+    )

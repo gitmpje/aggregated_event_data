@@ -110,3 +110,14 @@ class Product:
         self.label = label
         self.kind = kind
         self.identifier = f"{kind}/{label}"
+
+
+class Device:
+    def __init__(
+        self,
+        identifier: str,
+    ) -> None:
+        self.identifier = identifier
+
+        self.materials = []
+        self.quality = 1

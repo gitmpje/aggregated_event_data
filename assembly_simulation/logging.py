@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from json import dump
 from simpy import Environment
@@ -7,18 +8,24 @@ from functools import partial, wraps
 
 from assembly_simulation.production_entities import Lot
 
-LOGS_FOLDER = "logs"
+DEFAULT_LOGS_FOLDER = Path(__file__).parent.parent.joinpath("logs")
 
 
 class SimulationEventLogging:
-    def __init__(self, env: Environment, identifier: str):
+    def __init__(self, env: Environment, identifier: str, event_log_file: str = None):
         self.env = env
         self.identifier = identifier
 
-        self.events_file = os.path.join(LOGS_FOLDER, f"{self.identifier}_events.txt")
-        self.event_log_file = os.path.join(
-            LOGS_FOLDER, f"{self.identifier}_event_log.json"
+        self.events_file = os.path.join(
+            DEFAULT_LOGS_FOLDER, f"{self.identifier}_events.txt"
         )
+        if event_log_file:
+            self.event_log_file = event_log_file
+        else:
+            self.event_log_file = os.path.join(
+                DEFAULT_LOGS_FOLDER, f"{self.identifier}_event_log.json"
+            )
+
         self.aggregated_entities = set()
         self.products = set()
 
@@ -93,6 +100,10 @@ class SimulationEventLogging:
             }
             for p in self.products
         ]
+
+        # Convert devices to dictionary
+        for e in self.event_list:
+            e["_devices"] = [d.__dict__ for d in e["_devices"]]
 
         event_log = {
             "@context": {

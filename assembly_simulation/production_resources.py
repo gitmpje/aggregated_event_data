@@ -1,9 +1,12 @@
 from collections import defaultdict
 from copy import deepcopy
-from random import expovariate, shuffle
+from random import expovariate, random, shuffle
 from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
 
 from assembly_simulation.production_entities import PackingUnit
+
+# Factor with which to change the device quality (when random number is below process yield)
+DEVICE_QUALITY_FACTOR = 0.5
 
 
 class ProductionResource:
@@ -18,6 +21,7 @@ class ProductionResource:
         mean_repair: float,
         lot_store: Store,
         material_lot_store: FilterStore = None,
+        process_yield: float = 1.0,
     ) -> None:
         self.env = env
 
@@ -29,6 +33,7 @@ class ProductionResource:
         self.mean_repair = mean_repair
         self.lot_store = lot_store
         self.material_lot_store = material_lot_store
+        self.process_yield = process_yield
 
         self.state = "Idle"
         self.queue = PriorityStore(env)
@@ -77,7 +82,7 @@ class ProductionResource:
 
                         for i in range(q_consume):
                             device = requires_material.pop()
-                            device["materials"].append(mat_lot.materials.pop())
+                            device.materials.append(mat_lot.materials.pop())
 
                         # Close lot if it is empty, otherwise return it to the store
                         if mat_lot.quantity == 0:
@@ -118,6 +123,12 @@ class ProductionResource:
             # Update executed steps (for output quantity)
             lot.executed_steps.append(self.capability)
 
+            # Reduce device quality based on process yield
+            for device in lot.devices:
+                device.quality *= (
+                    1 if random() < self.process_yield else DEVICE_QUALITY_FACTOR
+                )
+
             processing = self.env.timeout(
                 done_in,
                 value={
@@ -133,7 +144,7 @@ class ProductionResource:
                         ],
                     },
                     "_devices": deepcopy(lot.devices),
-                }
+                },
             )
 
             self.state = "Processing"
