@@ -40,7 +40,9 @@ class Lot:
         elif hasattr(self, "executed_steps"):
             # Lot model is based on the operations executed on the lot
             # Excluding merge/split
-            operations = set(self.executed_steps) - set(["merge", "split"])
+            operations = [step for step in self.executed_steps if step not in ["merge", "split"]]
+            # Remove duplicates, but retain order
+            operations = list( dict.fromkeys(operations) )
             lot_model = Product(label="-".join(operations), kind="lotModel")
         else:
             raise AttributeError(f"Type of lot {self.identifier} is not defined!")
