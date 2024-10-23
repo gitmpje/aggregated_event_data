@@ -13,7 +13,13 @@ sys.path.append(str(path_root))
 
 from assembly_simulation.controller import Controller
 from assembly_simulation.logging import SimulationEventLogging
-from assembly_simulation.production_entities import Device, MaterialLot, ProductionLot
+from assembly_simulation.production_entities import (
+    Device,
+    MaterialLot,
+    MergeConfiguration,
+    ProductionLot,
+    SplitConfiguration,
+)
 from assembly_simulation.production_resources import PackingResource, ProductionResource
 
 
@@ -43,8 +49,12 @@ def main(
             identifier=r["id"],
             required_steps=r["steps"],
             required_material=r.get("required_material", dict()),
-            merge_configuration=r["merge"],
-            split_configuration=r["split"],
+            merge_configs=[
+                MergeConfiguration(**config) for config in r.get("merge", [])
+            ],
+            split_configs=[
+                SplitConfiguration(**config) for config in r.get("split", [])
+            ],
             devices=[
                 Device(identifier=f"{r['id']}_Device{d}") for d in range(r["n_devices"])
             ],

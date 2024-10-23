@@ -1,8 +1,8 @@
 {
     "production_lots": [
-        {"id": "Lot0", "steps": ["DB", "WB"], "merge": {}, "split": {"after_step": "DB", "number_of_split_lots": 2}, "n_devices": 3},
-        {"id": "Lot1", "steps": ["DB", "WB"], "merge": {}, "split": {"after_step": "DB", "number_of_split_lots": 2}, "n_devices": 3},
-        {"id": "Lot2", "steps": ["DB", "WB"], "merge": {}, "split": {"after_step": "DB", "number_of_split_lots": 2}, "n_devices": 3}
+        {"id": "Lot0", "steps": ["DB", "WB"], "split": [{"after_step": "DB", "number_of_split_lots": 2}], "n_devices": 3},
+        {"id": "Lot1", "steps": ["DB", "WB"], "split": [{"after_step": "DB", "number_of_split_lots": 2}], "n_devices": 3},
+        {"id": "Lot2", "steps": ["DB", "WB"], "split": [{"after_step": "DB", "number_of_split_lots": 2}], "n_devices": 3}
     ],
     "production_resources": [
         {"id": "DB1", "step": "DB", "mean_move": 0.5, "mean_duration": 1, "mean_breakdown": 5, "mean_repair": 1},

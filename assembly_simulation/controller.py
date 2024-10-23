@@ -2,7 +2,11 @@ from random import shuffle
 from simpy import Environment, FilterStore, PriorityItem, Store
 from typing import Dict
 
-from assembly_simulation.production_entities import ProductionLot
+from assembly_simulation.production_entities import (
+    MergeConfiguration,
+    ProductionLot,
+    SplitConfiguration,
+)
 
 
 def partition_list(list_in: list, n: int):
@@ -36,15 +40,23 @@ class Controller:
                 else ""
             )
 
+            merge_config = lot_to_schedule.get_merge_after_step(last_executed_step)
+            split_config = lot_to_schedule.get_split_after_step(last_executed_step)
+
             # Assume merge and split cannot happen after the same step
-            if last_executed_step == lot_to_schedule.merge.get("after_step"):
+            if merge_config:
                 # Lots are merged into the first lot in the list
-                merge_lot_identifier = lot_to_schedule.merge.get(
-                    "lot_identifiers", [None]
-                )[0]
+                merge_lot_identifier = (
+                    merge_config.lot_identifiers[0]
+                    if merge_config.lot_identifiers
+                    else None
+                )
+
                 if lot_to_schedule.identifier == merge_lot_identifier:
                     # If lot is target of merge, start merging process
-                    self.env.process(self.merge_lot_multiple(lot_to_schedule))
+                    self.env.process(
+                        self.merge_lot_multiple(lot_to_schedule, merge_config)
+                    )
                 elif merge_lot_identifier:
                     # If lot has to be merged to specific lot, add to store
                     yield self.merge_store.put(lot_to_schedule)
@@ -72,8 +84,8 @@ class Controller:
                         # Otherwise, put it in the store
                         yield self.merge_store_model.put(lot_to_schedule)
 
-            elif last_executed_step == lot_to_schedule.split.get("after_step"):
-                self.env.process(self.split_lot(lot_to_schedule))
+            elif split_config:
+                self.env.process(self.split_lot(lot_to_schedule, split_config))
                 lot_to_schedule.closed = True
 
             elif lot_to_schedule.required_steps:
@@ -95,8 +107,8 @@ class Controller:
 
         yield selected_resource.queue.put(PriorityItem("P1", lot_to_schedule))
 
-    def merge_lot_multiple(self, target_lot: ProductionLot):
-        for lot_id in target_lot.merge["lot_identifiers"][1:]:
+    def merge_lot_multiple(self, target_lot: ProductionLot, config: MergeConfiguration):
+        for lot_id in config.lot_identifiers[1:]:
             source_lot = yield self.merge_store.get(
                 lambda lot: lot.identifier == lot_id
             )
@@ -143,11 +155,11 @@ class Controller:
         yield self.lot_store.put(target_lot)
         return
 
-    def split_lot(self, target_lot: ProductionLot):
-        n = target_lot.split["number_of_split_lots"]
+    def split_lot(self, target_lot: ProductionLot, config: SplitConfiguration):
+        n = config.number_of_split_lots
         devices_list = partition_list(target_lot.devices, n)
         splitted_lots = []
-        for i in range(target_lot.split["number_of_split_lots"]):
+        for i in range(n):
             # Do not create lots without devices
             if not devices_list[i]:
                 continue
@@ -159,8 +171,8 @@ class Controller:
                 required_material=target_lot.required_material.copy(),
                 devices=devices_list[i],
                 executed_steps=target_lot.executed_steps.copy(),
-                merge_configuration=target_lot.merge,
-                split_configuration=target_lot.split,
+                merge_configs=target_lot.merge_configs,
+                split_configs=target_lot.split_configs,
             )
 
             splitted_lots.append(lot)
