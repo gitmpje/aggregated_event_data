@@ -1,8 +1,12 @@
+import logging
+
 from random import shuffle
 from simpy import Environment, FilterStore, PriorityItem, Store
 from typing import Dict
 
-from assembly_simulation.production_entities import (
+logger = logging.getLogger()
+
+from aggregated_event_data.production_entities import (
     MergeConfiguration,
     ProductionLot,
     SplitConfiguration,
@@ -146,7 +150,7 @@ class Controller:
         )
         target_lot.devices.extend(source_lot.devices)
         source_lot.devices = []
-        print(
+        logger.info(
             f"{target_lot.identifier} [{self.env.now}] - Merged {source_lot.identifier}"
         )
         source_lot.executed_steps.append("merge")
@@ -198,7 +202,7 @@ class Controller:
             },
         )
 
-        print(
+        logger.info(
             f"{target_lot.identifier} [{self.env.now}] - Splitted {[lot.identifier for lot in splitted_lots]}"
         )
 

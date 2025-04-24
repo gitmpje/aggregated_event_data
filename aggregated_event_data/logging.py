@@ -1,12 +1,15 @@
+import logging
 import os
-from pathlib import Path
+
+logger = logging.getLogger()
 
 from json import dump
+from functools import partial, wraps
+from pathlib import Path
 from simpy import Environment
 
-from functools import partial, wraps
 
-from assembly_simulation.production_entities import Lot
+from aggregated_event_data.production_entities import Lot
 
 DEFAULT_LOGS_FOLDER = Path(__file__).parent.parent.joinpath("logs")
 
@@ -74,7 +77,7 @@ class SimulationEventLogging:
     def monitor_lot_store(env, store):
         while True:
             yield env.timeout(1)
-            print(env.now, " - lots in store: ", store.items)
+            logger.info(env.now, " - lots in store: ", store.items)
 
     def register_aggregated_entity(self, entity: Lot):
         self.aggregated_entities.add(entity)

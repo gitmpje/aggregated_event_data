@@ -1,9 +1,13 @@
+import logging
+
 from collections import defaultdict
 from copy import deepcopy
 from random import expovariate, random, shuffle
 from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
 
-from assembly_simulation.production_entities import PackingUnit
+logger = logging.getLogger()
+
+from aggregated_event_data.production_entities import PackingUnit
 
 # Factor with which to change the device quality (when random number is below process yield)
 DEVICE_QUALITY_FACTOR = 0.5
@@ -91,12 +95,12 @@ class ProductionResource:
                         # Keep material lots while processing
                         material_lots.append((mat_lot, q_consume))
 
-                print(
+                logger.info(
                     f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
                 )
             else:
                 # Resume processing a production lot
-                print(
+                logger.info(
                     f"{self.identifier} [{self.env.now}] - Resume processing {lot.identifier}"
                 )
                 done_in = remaining_time
@@ -105,7 +109,7 @@ class ProductionResource:
             breakdown = self.env.process(self.breakdown())
 
             # Log the consumption of materials
-            print(
+            logger.info(
                 f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
             )
 
@@ -176,7 +180,7 @@ class ProductionResource:
                     if not mat_lot.closed:
                         self.material_lot_store.put(mat_lot)
 
-                print(
+                logger.info(
                     f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}"
                 )
 
@@ -192,12 +196,12 @@ class ProductionResource:
 
                 self.state = "Broken"
                 yield self.env.timeout(expovariate(1 / self.mean_repair))
-                print(f"{self.identifier} [{self.env.now}] - Repaired")
+                logger.info(f"{self.identifier} [{self.env.now}] - Repaired")
 
     def breakdown(self):
         try:
             yield self.env.timeout(expovariate(1 / self.mean_breakdown))
-            print(f"{self.identifier} [{self.env.now}] - Breakdown")
+            logger.info(f"{self.identifier} [{self.env.now}] - Breakdown")
         except Interrupt:
             pass
 

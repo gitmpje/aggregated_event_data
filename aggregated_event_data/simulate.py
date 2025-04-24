@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 
 from collections import defaultdict
@@ -11,16 +12,18 @@ from simpy import Environment, FilterStore, Store
 path_root = Path(__file__).parents[1]
 sys.path.append(str(path_root))
 
-from assembly_simulation.controller import Controller
-from assembly_simulation.logging import SimulationEventLogging
-from assembly_simulation.production_entities import (
+logger = logging.getLogger()
+
+from aggregated_event_data.controller import Controller
+from aggregated_event_data.logging import SimulationEventLogging
+from aggregated_event_data.production_entities import (
     Device,
     MaterialLot,
     MergeConfiguration,
     ProductionLot,
     SplitConfiguration,
 )
-from assembly_simulation.production_resources import PackingResource, ProductionResource
+from aggregated_event_data.production_resources import PackingResource, ProductionResource
 
 
 def main(
@@ -115,7 +118,7 @@ def main(
     )
 
     env.run(runtime)
-    print(packing_resource.packing_units)
+    logging.info(packing_resource.packing_units)
 
     simulation_event_logging.write_json_event_data()
 

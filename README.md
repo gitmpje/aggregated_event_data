@@ -45,13 +45,17 @@ This package requires the following Python packages to be installed for usage. T
 You can install this package using pip:
 
 ```bash
-pip install -r requirements.txt
+pip install
 ```
 
 
 ### Example
 
 Example usage `python -m assembly_simulation.simulate examples/example_1.json`.
+
+## Configuration
+
+Explain structure and content of simulation configuration.
 
 
 ## Contributing
