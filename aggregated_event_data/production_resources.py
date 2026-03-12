@@ -14,6 +14,13 @@ DEVICE_QUALITY_FACTOR = 0.5
 
 
 class ProductionResource:
+    capability = str()
+    mean_move = float()
+    mean_duration = float()
+    mean_breakdown = float()
+    mean_repair = float()
+    process_yield = float()
+
     def __init__(
         self,
         env: Environment,
@@ -43,6 +50,8 @@ class ProductionResource:
         self.queue = PriorityStore(env)
         self.running_process = env.process(self.running())
 
+        self.env.logging.register_production_resource(self)
+
     def running(self):
         remaining_time = None
         while True:
@@ -56,18 +65,36 @@ class ProductionResource:
                 yield self.env.timeout(
                     expovariate(self.mean_move),
                     value={
-                        "eventType": "Object",
-                        "bizStep": "arriving",
-                        "entity": lot.identifier,
-                        "location": self.identifier,
-                        "quantity": {
-                            "amount": len(lot.devices),
-                            "class": [
-                                lot.identifier,
-                                lot.get_lot_model().identifier,
+                        "json-ld": {
+                            "eventType": "Object",
+                            "bizStep": "arriving",
+                            "entity": lot.identifier,
+                            "location": self.identifier,
+                            "quantity": {
+                                "amount": len(lot.devices),
+                                "class": [
+                                    lot.identifier,
+                                    lot.get_lot_model().identifier,
+                                ],
+                            },
+                            "_devices": deepcopy(lot.devices),
+                        },
+                        "ocel": {
+                            "type": f"Object-arriving-{self.capability}",
+                            "attributes": [
+                                {"name": "amount", "value": len(lot.devices)}
+                            ],
+                            "relationships": [
+                                {
+                                    "objectId": lot.identifier,
+                                    "qualifier": "object",
+                                },
+                                {
+                                    "objectId": self.identifier,
+                                    "qualifier": "location",
+                                },
                             ],
                         },
-                        "_devices": deepcopy(lot.devices),
                     },
                 )
 
@@ -110,7 +137,7 @@ class ProductionResource:
 
             # Log the consumption of materials
             logger.info(
-                f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m,q in material_lots]} "
+                f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m, q in material_lots]} "
             )
 
             input_quantity = [
@@ -136,18 +163,37 @@ class ProductionResource:
             processing = self.env.timeout(
                 done_in,
                 value={
-                    "eventType": "Transformation",
-                    "bizStep": "assembling",
-                    "location": self.identifier,
-                    "inputQuantity": input_quantity,
-                    "outputQuantity": {
-                        "amount": len(lot.devices),
-                        "class": [
-                            lot.identifier,
-                            lot.get_lot_model().identifier,
+                    "json-ld": {
+                        "eventType": "Transformation",
+                        "bizStep": "assembling",
+                        "location": self.identifier,
+                        "inputQuantity": input_quantity,
+                        "outputQuantity": {
+                            "amount": len(lot.devices),
+                            "class": [
+                                lot.identifier,
+                                lot.get_lot_model().identifier,
+                            ],
+                        },
+                        "_devices": deepcopy(lot.devices),
+                    },
+                    "ocel": {
+                        "type": f"Transformation-assembling-{self.capability}",
+                        "attributes": [
+                            {"name": "inputQuantity", "value": input_quantity},
+                            {"name": "outputQuantity", "value": len(lot.devices)},
+                        ],
+                        "relationships": [
+                            {
+                                "objectId": lot.identifier,
+                                "qualifier": "object",
+                            },
+                            {
+                                "objectId": self.identifier,
+                                "qualifier": "location",
+                            },
                         ],
                     },
-                    "_devices": deepcopy(lot.devices),
                 },
             )
 
@@ -161,18 +207,36 @@ class ProductionResource:
                 yield self.env.timeout(
                     1 / 1000,
                     value={
-                        "eventType": "Object",
-                        "bizStep": "departing",
-                        "entity": lot.identifier,
-                        "location": self.identifier,
-                        "quantity": {
-                            "amount": len(lot.devices),
-                            "class": [
-                                lot.identifier,
-                                lot.get_lot_model().identifier,
+                        "json-ld": {
+                            "eventType": "Object",
+                            "bizStep": "departing",
+                            "entity": lot.identifier,
+                            "location": self.identifier,
+                            "quantity": {
+                                "amount": len(lot.devices),
+                                "class": [
+                                    lot.identifier,
+                                    lot.get_lot_model().identifier,
+                                ],
+                            },
+                            "_devices": deepcopy(lot.devices),
+                        },
+                        "ocel": {
+                            "type": f"Object-departing-{self.capability}",
+                            "attributes": [
+                                {"name": "quantity", "value": len(lot.devices)},
+                            ],
+                            "relationships": [
+                                {
+                                    "objectId": lot.identifier,
+                                    "qualifier": "object",
+                                },
+                                {
+                                    "objectId": self.identifier,
+                                    "qualifier": "location",
+                                },
                             ],
                         },
-                        "_devices": deepcopy(lot.devices),
                     },
                 )
 
@@ -256,16 +320,44 @@ class PackingResource:
                     for lot, d in input_devices.items()
                 ]
 
+                avg_quality = sum(d[1].quality for d in devices)/len(devices)
+
                 yield self.env.timeout(
                     0.1,
                     value={
-                        "eventType": "Aggregation",
-                        "action": "ADD",
-                        "bizStep": "packing",
-                        "parentEntity": packing_unit_id,
-                        "childEntity": [lot.identifier for lot in input_devices.keys()],
-                        "childQuantity": child_quantities,
-                        "_devices": [d[1] for d in devices],
+                        "json-ld": {
+                            "eventType": "Aggregation",
+                            "action": "ADD",
+                            "bizStep": "packing",
+                            "parentEntity": packing_unit_id,
+                            "childEntity": [
+                                lot.identifier for lot in input_devices.keys()
+                            ],
+                            "childQuantity": child_quantities,
+                            "_devices": [d[1] for d in devices],
+                        },
+                        "ocel": {
+                            "type": "Aggregation-ADD",
+                            "relationships": [
+                                {
+                                    "objectId": packing_unit_id,
+                                    "qualifier": "parentObject",
+                                }
+                            ]
+                            + [
+                                {
+                                    "objectId": lot.identifier,
+                                    "qualifier": "childObject",
+                                }
+                                for lot in input_devices.keys()
+                            ],
+                            "attributes": [
+                                {
+                                    "name": "averageQuality",
+                                    "value": avg_quality,
+                                }
+                            ],
+                        },
                     },
                 )
 

@@ -125,27 +125,46 @@ class Controller:
         yield self.env.timeout(
             0.1,
             value={
-                "eventType": "Aggregation",
-                "action": "ADD",
-                "parentEntity": target_lot.identifier,
-                "childEntity": source_lot.identifier,
-                "childQuantity": [
-                    {
-                        "amount": len(source_lot.devices),
-                        "class": [
-                            source_lot.identifier,
-                            source_lot.get_lot_model().identifier,
-                        ],
-                    },
-                    {
-                        "amount": len(target_lot.devices),
-                        "class": [
-                            target_lot.identifier,
-                            target_lot.get_lot_model().identifier,
-                        ],
-                    },
-                ],
-                "_devices": target_lot.devices + source_lot.devices,
+                "json-ld": {
+                    "eventType": "Aggregation",
+                    "action": "ADD",
+                    "parentEntity": target_lot.identifier,
+                    "childEntity": source_lot.identifier,
+                    "childQuantity": [
+                        {
+                            "amount": len(source_lot.devices),
+                            "class": [
+                                source_lot.identifier,
+                                source_lot.get_lot_model().identifier,
+                            ],
+                        },
+                        {
+                            "amount": len(target_lot.devices),
+                            "class": [
+                                target_lot.identifier,
+                                target_lot.get_lot_model().identifier,
+                            ],
+                        },
+                    ],
+                    "_devices": target_lot.devices + source_lot.devices,
+                },
+                "ocel": {
+                    "type": "Aggregation-ADD",
+                    "relationships": [
+                        {
+                            "objectId": target_lot.identifier,
+                            "qualifier": "parentObject",
+                        },
+                        {
+                            "objectId": target_lot.identifier,
+                            "qualifier": "childObject",
+                        },
+                        {
+                            "objectId": source_lot.identifier,
+                            "qualifier": "childObject",
+                        },
+                    ],
+                },
             },
         )
         target_lot.devices.extend(source_lot.devices)
@@ -184,21 +203,39 @@ class Controller:
         yield self.env.timeout(
             0.1,
             value={
-                "eventType": "Aggregation",
-                "action": "DELETE",
-                "parentEntity": target_lot.identifier,
-                "childEntity": [lot.identifier for lot in splitted_lots],
-                "childQuantity": [
-                    {
-                        "amount": len(lot.devices),
-                        "class": [
-                            lot.identifier,
-                            lot.get_lot_model().identifier,
-                        ],
-                    }
-                    for lot in splitted_lots
-                ],
-                "_devices": target_lot.devices,
+                "json-ld": {
+                    "eventType": "Aggregation",
+                    "action": "DELETE",
+                    "parentEntity": target_lot.identifier,
+                    "childEntity": [lot.identifier for lot in splitted_lots],
+                    "childQuantity": [
+                        {
+                            "amount": len(lot.devices),
+                            "class": [
+                                lot.identifier,
+                                lot.get_lot_model().identifier,
+                            ],
+                        }
+                        for lot in splitted_lots
+                    ],
+                    "_devices": target_lot.devices,
+                },
+                "ocel": {
+                    "type": "Aggregation-DELETE",
+                    "relationships": [
+                        {
+                            "objectId": target_lot.identifier,
+                            "qualifier": "parentObject",
+                        }
+                    ]
+                    + [
+                        {
+                            "objectId": lot.identifier,
+                            "qualifier": "childObject",
+                        }
+                        for lot in splitted_lots
+                    ],
+                },
             },
         )
 

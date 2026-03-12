@@ -20,6 +20,7 @@ Package for simulating an (assembly) environment where products/devices are trac
 
 ### Controller
 * Uses simple heuristic to schedule each lot at a resource with the shortest queue.
+* After a production step a production lot can either be merged or split, not both. 
 
 ### Logging
 * The logging is based on the EPCIS 2.0 vocabulary.
@@ -51,7 +52,8 @@ pip install
 
 ### Example
 
-Example usage `python -m assembly_simulation.simulate examples/example_1.json`.
+Example usage `python -m aggregated_event_data.simulate examples/example_1.json`.
+Generate and save OCEL `python -m aggregated_event_data.simulate examples/example_1.json -l logs/example_1_ocel.json`.
 
 ## Configuration
 

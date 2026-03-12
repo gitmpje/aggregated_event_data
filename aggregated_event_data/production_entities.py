@@ -19,18 +19,30 @@ class Lot:
         yield self.env.timeout(
             0,
             value={
-                "eventType": "Object",
-                "bizStep": "creating_class_instance",
-                "entity": self.identifier,
-                "quantity": {
-                    "amount": amount,
-                    "class": [
-                        self.identifier,
-                        self.get_lot_model().identifier,
+                "json-ld": {
+                    "eventType": "Object",
+                    "bizStep": "creating_class_instance",
+                    "entity": self.identifier,
+                    "quantity": {
+                        "amount": amount,
+                        "class": [
+                            self.identifier,
+                            self.get_lot_model().identifier,
+                        ],
+                    },
+                    "_devices": deepcopy(devices),
+                    "_materials": materials.copy(),
+                },
+                "ocel": {
+                    "type": "Object-creating_class_instance",
+                    "attributes": [{"name": "quantity", "value": amount}],
+                    "relationships": [
+                        {
+                            "objectId": self.identifier,
+                            "qualifier": "object",
+                        },
                     ],
                 },
-                "_devices": deepcopy(devices),
-                "_materials": materials.copy(),
             },
         )
 
@@ -74,6 +86,8 @@ class SplitConfiguration:
 
 
 class ProductionLot(Lot):
+    executed_steps = list()
+
     def __init__(
         self,
         *args,
@@ -117,6 +131,9 @@ class ProductionLot(Lot):
 
 
 class MaterialLot(Lot):
+    material_type = str()
+    quantity = int()
+
     def __init__(
         self,
         *args,
@@ -144,6 +161,9 @@ class PackingUnit(Lot):
 
 
 class Product:
+    label = str()
+    kind = str()
+
     def __init__(
         self,
         label: str,
@@ -155,6 +175,8 @@ class Product:
 
 
 class Device:
+    quality = float()
+
     def __init__(
         self,
         identifier: str,

@@ -9,11 +9,6 @@ from pathlib import Path
 from random import seed
 from simpy import Environment, FilterStore, Store
 
-path_root = Path(__file__).parents[1]
-sys.path.append(str(path_root))
-
-logger = logging.getLogger()
-
 from aggregated_event_data.controller import Controller
 from aggregated_event_data.logging import SimulationEventLogging
 from aggregated_event_data.production_entities import (
@@ -23,7 +18,15 @@ from aggregated_event_data.production_entities import (
     ProductionLot,
     SplitConfiguration,
 )
-from aggregated_event_data.production_resources import PackingResource, ProductionResource
+from aggregated_event_data.production_resources import (
+    PackingResource,
+    ProductionResource,
+)
+
+path_root = Path(__file__).parents[1]
+sys.path.append(str(path_root))
+
+logger = logging.getLogger()
 
 
 def main(
@@ -31,6 +34,7 @@ def main(
     runtime: int,
     random_seed: int = None,
     output_event_log_file: str = None,
+    ocel_file: str = None,
 ):
     with open(config_file) as f:
         config = load(f)
@@ -40,7 +44,7 @@ def main(
 
     # Instantiate environment and logging
     env = Environment()
-    logging_id = f"{Path(config_file).stem}{'_'+random_seed if random_seed else ''}"
+    logging_id = f"{Path(config_file).stem}{'_' + random_seed if random_seed else ''}"
     simulation_event_logging = SimulationEventLogging(
         env, identifier=logging_id, event_log_file=output_event_log_file
     )
@@ -113,7 +117,7 @@ def main(
     packing_store = Store(env)
     packing_resource = PackingResource(env, config["packing_unit_size"], packing_store)
 
-    controller = Controller(
+    Controller(
         env, production_resources_dict, production_lots_store, packing_store
     )
 
@@ -121,11 +125,13 @@ def main(
     logging.info(packing_resource.packing_units)
 
     simulation_event_logging.write_json_event_data()
+    if ocel_file:
+        simulation_event_logging.write_ocel_json(ocel_file)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="assembly_simulation",
+        prog="aggregated_event_data",
         description="",
         formatter_class=argparse.RawTextHelpFormatter,
     )
@@ -142,6 +148,12 @@ if __name__ == "__main__":
         help="Name/path of the out file with the event log.",
         default=None,
     )
+    parser.add_argument(
+        "-l",
+        "--ocel_file",
+        help="Name/path of the out file containing OCEL.",
+        default=None,
+    )
     parser.add_argument("-r", "--runtime", help="Maximum simulation time.", default=100)
 
     args = parser.parse_args()
@@ -151,4 +163,5 @@ if __name__ == "__main__":
         runtime=args.runtime,
         random_seed=args.random_seed,
         output_event_log_file=args.output_event_log_file,
+        ocel_file=args.ocel_file,
     )
