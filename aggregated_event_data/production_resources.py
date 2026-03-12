@@ -4,6 +4,7 @@ from collections import defaultdict
 from copy import deepcopy
 from random import expovariate, random, shuffle
 from simpy import Environment, FilterStore, Interrupt, PriorityStore, Store
+from typing import Dict
 
 logger = logging.getLogger()
 
@@ -33,6 +34,7 @@ class ProductionResource:
         lot_store: Store,
         material_lot_store: FilterStore = None,
         process_yield: float = 1.0,
+        event_attributes: Dict[str, callable] = dict(),
     ) -> None:
         self.env = env
 
@@ -45,6 +47,7 @@ class ProductionResource:
         self.lot_store = lot_store
         self.material_lot_store = material_lot_store
         self.process_yield = process_yield
+        self.event_attributes = event_attributes
 
         self.state = "Idle"
         self.queue = PriorityStore(env)
@@ -122,12 +125,12 @@ class ProductionResource:
                         # Keep material lots while processing
                         material_lots.append((mat_lot, q_consume))
 
-                logger.info(
+                logger.debug(
                     f"{self.identifier} [{self.env.now}] - Start processing {lot.identifier}"
                 )
             else:
                 # Resume processing a production lot
-                logger.info(
+                logger.debug(
                     f"{self.identifier} [{self.env.now}] - Resume processing {lot.identifier}"
                 )
                 done_in = remaining_time
@@ -136,7 +139,7 @@ class ProductionResource:
             breakdown = self.env.process(self.breakdown())
 
             # Log the consumption of materials
-            logger.info(
+            logger.debug(
                 f"{self.identifier} [{self.env.now}] - Consumed materials for {lot.identifier}: {[(m.identifier, q) for m, q in material_lots]} "
             )
 
@@ -204,6 +207,12 @@ class ProductionResource:
                 breakdown.interrupt()  # stop breakdown process
 
                 # Depart shortly after assembly (and consumption of materials)
+                attributes = [
+                    {"name": "quantity", "value": len(lot.devices)},
+                ]
+                for attr_name, attr_value in self.event_attributes.items():
+                    attributes.append({"name": attr_name, "value": attr_value()})
+
                 yield self.env.timeout(
                     1 / 1000,
                     value={
@@ -223,9 +232,7 @@ class ProductionResource:
                         },
                         "ocel": {
                             "type": f"Object-departing-{self.capability}",
-                            "attributes": [
-                                {"name": "quantity", "value": len(lot.devices)},
-                            ],
+                            "attributes": attributes,
                             "relationships": [
                                 {
                                     "objectId": lot.identifier,
@@ -244,7 +251,7 @@ class ProductionResource:
                     if not mat_lot.closed:
                         self.material_lot_store.put(mat_lot)
 
-                logger.info(
+                logger.debug(
                     f"{self.identifier} [{self.env.now}] - Finished processing {lot.identifier}"
                 )
 
@@ -260,12 +267,12 @@ class ProductionResource:
 
                 self.state = "Broken"
                 yield self.env.timeout(expovariate(1 / self.mean_repair))
-                logger.info(f"{self.identifier} [{self.env.now}] - Repaired")
+                logger.debug(f"{self.identifier} [{self.env.now}] - Repaired")
 
     def breakdown(self):
         try:
             yield self.env.timeout(expovariate(1 / self.mean_breakdown))
-            logger.info(f"{self.identifier} [{self.env.now}] - Breakdown")
+            logger.debug(f"{self.identifier} [{self.env.now}] - Breakdown")
         except Interrupt:
             pass
 
@@ -320,7 +327,7 @@ class PackingResource:
                     for lot, d in input_devices.items()
                 ]
 
-                avg_quality = sum(d[1].quality for d in devices)/len(devices)
+                avg_quality = sum(d[1].quality for d in devices) / len(devices)
 
                 yield self.env.timeout(
                     0.1,

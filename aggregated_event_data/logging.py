@@ -115,7 +115,7 @@ class SimulationEventLogging:
     def monitor_lot_store(env, store):
         while True:
             yield env.timeout(1)
-            logger.info(env.now, " - lots in store: ", store.items)
+            logger.debug(env.now, " - lots in store: ", store.items)
 
     def register_aggregated_entity(self, entity: Lot):
         self.aggregated_entities.add(entity)

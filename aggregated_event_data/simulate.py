@@ -6,7 +6,7 @@ from collections import defaultdict
 from json import load
 from math import ceil
 from pathlib import Path
-from random import seed
+from random import random, seed
 from simpy import Environment, FilterStore, Store
 
 from aggregated_event_data.controller import Controller
@@ -106,6 +106,7 @@ def main(
             lot_store=production_lots_store,
             material_lot_store=material_lots_store,
             process_yield=r.get("process_yield", 1),
+            event_attributes={"temperature": random},
         )
         for r in config["production_resources"]
     ]

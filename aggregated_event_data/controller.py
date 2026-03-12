@@ -169,7 +169,7 @@ class Controller:
         )
         target_lot.devices.extend(source_lot.devices)
         source_lot.devices = []
-        logger.info(
+        logger.debug(
             f"{target_lot.identifier} [{self.env.now}] - Merged {source_lot.identifier}"
         )
         source_lot.executed_steps.append("merge")
@@ -239,7 +239,7 @@ class Controller:
             },
         )
 
-        logger.info(
+        logger.debug(
             f"{target_lot.identifier} [{self.env.now}] - Splitted {[lot.identifier for lot in splitted_lots]}"
         )
 
