@@ -161,6 +161,7 @@ class SimulationEventLogging:
                     "@context": {
                         "eventIdentifier": "@id",
                         "eventType": "@type",
+                        "timestamp": {"@type": "http://www.w3.org/2001/XMLSchema#dateTime"},
                         "entity": {"@type": "@id"},
                         "parentEntity": {"@type": "@id"},
                         "childEntity": {"@type": "@id"},
